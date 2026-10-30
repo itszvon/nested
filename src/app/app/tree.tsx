@@ -9,6 +9,8 @@ import {
   type FolderRow,
   type TreeNode,
 } from "@/lib/tree";
+import { renameNode, trashNode } from "./actions";
+import { ConfirmDialog, NewFileDialog, NewFolderDialog } from "./dialogs";
 
 const EXPANDED_KEY = "nested.expanded";
 
@@ -20,16 +22,25 @@ function formatBytes(bytes: number | undefined) {
 }
 
 function languageLabel(node: TreeNode) {
-  if (node.type === "file" && node.kind === "code") {
-    return node.language ?? "code";
-  }
-  return "";
+  return node.type === "file" && node.kind === "code" ? node.language ?? "code" : "";
 }
 
-/**
- * The sidebar. Flat DOM, ARIA tree semantics, roving tabindex, and a right
- * column that reads like a ledger: what it is, how big it is.
- */
+function countSubtree(node: TreeNode) {
+  let folders = 0;
+  let files = 0;
+  for (const child of node.children) {
+    if (child.type === "folder") folders++;
+    else files++;
+    const deeper = countSubtree(child);
+    folders += deeper.folders;
+    files += deeper.files;
+  }
+  return { folders, files };
+}
+
+type Menu = { id: string; kind: "folder" | "file"; name: string } | null;
+type Renaming = { id: string; kind: "folder" | "file"; value: string } | null;
+
 export function WorkspaceTree({
   folders,
   files,
@@ -49,13 +60,21 @@ export function WorkspaceTree({
   const [focusIndex, setFocusIndex] = useState(0);
   const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
 
-  // Expansion belongs to the device, not the account, and never to the server.
+  const [menu, setMenu] = useState<Menu>(null);
+  const [renaming, setRenaming] = useState<Renaming>(null);
+  const [trashTarget, setTrashTarget] = useState<TreeNode | null>(null);
+  const [newFileTarget, setNewFileTarget] = useState<{ id: string | null; name: string } | null>(null);
+  const [newFolderTarget, setNewFolderTarget] = useState<{ id: string | null; name: string } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Enter commits, which unmounts the input and fires blur too.
+  const committing = useRef(false);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(EXPANDED_KEY);
       if (raw) setExpanded(new Set(JSON.parse(raw) as string[]));
     } catch {
-      /* corrupt or unavailable storage is not worth failing over */
+      /* corrupt storage is not worth failing over */
     }
     setHydrated(true);
   }, []);
@@ -69,8 +88,38 @@ export function WorkspaceTree({
     }
   }, [expanded, hydrated]);
 
+  // Close the row menu on any outside interaction.
+  useEffect(() => {
+    if (!menu) return;
+    function close(event: PointerEvent) {
+      const target = event.target as HTMLElement;
+      if (target.closest("[data-row-menu]")) return;
+      setMenu(null);
+    }
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [menu]);
+
+  const selectedNode = selectedId ? workspace.index.get(selectedId) ?? null : null;
+  const targetFolder =
+    selectedNode?.type === "folder"
+      ? selectedNode
+      : selectedNode?.parentId
+        ? workspace.index.get(selectedNode.parentId) ?? null
+        : null;
+
+  const showRootFiles = workspace.looseFiles.length > 0;
+  const rows = useMemo(
+    () => flattenWorkspace(workspace, expanded, showRootFiles),
+    [workspace, expanded, showRootFiles],
+  );
+
+  // Keep the roving focus inside the list as it shrinks.
+  useEffect(() => {
+    if (focusIndex > rows.length - 1) setFocusIndex(Math.max(0, rows.length - 1));
+  }, [rows.length, focusIndex]);
+
   // A reload restores ?f=, but the file may sit inside collapsed folders.
-  // Opening its ancestors keeps the selection visible instead of hidden.
   useEffect(() => {
     if (!selectedId) return;
     const node = workspace.index.get(selectedId);
@@ -93,17 +142,6 @@ export function WorkspaceTree({
     });
   }, [selectedId, workspace]);
 
-  const showRootFiles = workspace.looseFiles.length > 0;
-  const rows = useMemo(
-    () => flattenWorkspace(workspace, expanded, showRootFiles),
-    [workspace, expanded, showRootFiles],
-  );
-
-  // Keep the roving focus inside the list as it shrinks.
-  useEffect(() => {
-    if (focusIndex > rows.length - 1) setFocusIndex(Math.max(0, rows.length - 1));
-  }, [rows.length, focusIndex]);
-
   function toggle(id: string) {
     setExpanded((current) => {
       const next = new Set(current);
@@ -121,6 +159,42 @@ export function WorkspaceTree({
     const clamped = Math.max(0, Math.min(index, rows.length - 1));
     setFocusIndex(clamped);
     rowRefs.current[clamped]?.focus();
+  }
+
+  async function commitRename() {
+    if (!renaming || committing.current) return;
+    committing.current = true;
+
+    const next = renaming.value.trim();
+    const node = workspace.index.get(renaming.id);
+    setRenaming(null);
+
+    try {
+      if (!next || next === node?.name) return;
+
+      const result = await renameNode(renaming.kind, renaming.id, next);
+      if (!result.ok) {
+        setNotice(result.error);
+        return;
+      }
+      router.refresh();
+    } finally {
+      committing.current = false;
+    }
+  }
+
+  async function commitTrash() {
+    if (!trashTarget) return;
+    const target = trashTarget;
+    setTrashTarget(null);
+
+    const result = await trashNode(target.type === "folder" ? "folder" : "file", target.id);
+    if (!result.ok) {
+      setNotice(result.error);
+      return;
+    }
+    if (selectedId === target.id) router.replace(pathname, { scroll: false });
+    router.refresh();
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>, index: number) {
@@ -160,6 +234,18 @@ export function WorkspaceTree({
         if (row.node.type === "folder") toggle(row.node.id);
         else selectFile(row.node.id);
         break;
+      case "F2":
+        event.preventDefault();
+        setRenaming({
+          id: row.node.id,
+          kind: row.node.type,
+          value: row.node.name,
+        });
+        break;
+      case "Delete":
+        event.preventDefault();
+        setTrashTarget(row.node);
+        break;
       case "Home":
         event.preventDefault();
         focusRow(0);
@@ -168,70 +254,268 @@ export function WorkspaceTree({
         event.preventDefault();
         focusRow(rows.length - 1);
         break;
+      case "Escape":
+        setMenu(null);
+        break;
     }
   }
 
-  if (rows.length === 0) {
-    return (
-      <div className="px-3 py-6 text-[13px] leading-relaxed text-ink-faint">
-        <p className="text-ink-dim">Nothing here yet.</p>
-        <p className="mt-1">Create a project to start. Folders nest as deep as you need.</p>
-      </div>
-    );
-  }
+  const trashCounts = trashTarget ? countSubtree(trashTarget) : null;
 
   return (
-    <div role="tree" aria-label="Files and folders" className="pb-6">
-      {rows.map((row, index) => {
-        const isSelected = row.node.id === selectedId;
-        const isFolder = row.node.type === "folder";
+    <>
+      <div className="flex h-9 items-center gap-1 border-b border-rule px-2">
+        <button
+          type="button"
+          onClick={() =>
+            setNewFolderTarget({ id: targetFolder?.id ?? null, name: targetFolder?.name ?? "root" })
+          }
+          className="h-6 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-dim hover:text-ink"
+        >
+          + Folder
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setNewFileTarget({ id: targetFolder?.id ?? null, name: targetFolder?.name ?? "root" })
+          }
+          className="h-6 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-dim hover:text-ink"
+        >
+          + File
+        </button>
+        <span className="ml-auto font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
+          {targetFolder ? targetFolder.name : "root"}
+        </span>
+      </div>
 
-        return (
-          <div
-            key={row.node.id}
-            ref={(el) => {
-              rowRefs.current[index] = el;
-            }}
-            role="treeitem"
-            aria-level={row.depth + 1}
-            aria-expanded={isFolder ? row.expanded : undefined}
-            aria-selected={isSelected}
-            tabIndex={index === focusIndex ? 0 : -1}
-            onKeyDown={(event) => onKeyDown(event, index)}
-            onClick={() => {
-              setFocusIndex(index);
-              if (isFolder) toggle(row.node.id);
-              else selectFile(row.node.id);
-            }}
-            className={[
-              "group flex h-7 cursor-default items-center gap-1.5 border-b border-rule/70 pr-2 text-[13px]",
-              "hover:bg-[#111614]",
-              isSelected ? "bg-panel shadow-[inset_2px_0_0_var(--color-accent)]" : "",
-              isFolder ? "text-ink" : "text-ink-dim",
-            ].join(" ")}
-            style={{ paddingLeft: 8 + row.depth * 14 }}
+      {notice ? (
+        <div className="flex items-start gap-2 border-b border-rule bg-accent/10 px-3 py-2 text-[11px] text-ink">
+          <span className="flex-1 leading-relaxed">{notice}</span>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-dim"
           >
-            <span
-              aria-hidden="true"
-              className="w-3 shrink-0 text-center font-mono text-[9px] text-ink-faint"
-            >
-              {isFolder && row.hasChildren ? (row.expanded ? "▾" : "▸") : ""}
-            </span>
+            dismiss
+          </button>
+        </div>
+      ) : null}
 
-            <span className="truncate">{row.node.name}</span>
+      {rows.length === 0 ? (
+        <div className="px-3 py-6 text-[13px] leading-relaxed text-ink-faint">
+          <p className="text-ink-dim">Nothing here yet.</p>
+          <p className="mt-1">
+            Use <span className="font-mono text-[11px] text-ink-dim">+ Folder</span> to create a
+            project, then add a file inside it.
+          </p>
+        </div>
+      ) : (
+        <div role="tree" aria-label="Files and folders" className="pb-6">
+          {rows.map((row, index) => {
+            const isSelected = row.node.id === selectedId;
+            const isFolder = row.node.type === "folder";
+            const isRenaming = renaming?.id === row.node.id;
+            const menuOpen = menu?.id === row.node.id;
 
-            <span className="ml-auto shrink-0 pl-2 font-mono text-[10px] tracking-tight text-ink-faint">
-              {isFolder
-                ? row.node.children.length > 0
-                  ? String(row.node.children.length)
-                  : ""
-                : isSelected
-                  ? formatBytes(row.node.byteSize)
-                  : languageLabel(row.node)}
-            </span>
-          </div>
-        );
-      })}
-    </div>
+            return (
+              <div
+                key={row.node.id}
+                ref={(el) => {
+                  rowRefs.current[index] = el;
+                }}
+                role="treeitem"
+                aria-level={row.depth + 1}
+                aria-expanded={isFolder ? row.expanded : undefined}
+                aria-selected={isSelected}
+                tabIndex={index === focusIndex ? 0 : -1}
+                onKeyDown={(event) => onKeyDown(event, index)}
+                onClick={() => {
+                  setFocusIndex(index);
+                  if (isFolder) toggle(row.node.id);
+                  else selectFile(row.node.id);
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  setFocusIndex(index);
+                  setMenu({ id: row.node.id, kind: row.node.type, name: row.node.name });
+                }}
+                className={[
+                  "group relative flex h-7 cursor-default items-center gap-1.5 border-b border-rule pr-1.5 text-[13px]",
+                  "hover:bg-[#111614]",
+                  isSelected ? "bg-panel shadow-[inset_2px_0_0_var(--color-accent)]" : "",
+                  isFolder ? "text-ink" : "text-ink-dim",
+                ].join(" ")}
+                style={{ paddingLeft: 8 + row.depth * 14 }}
+              >
+                <span
+                  aria-hidden="true"
+                  className="w-3 shrink-0 text-center font-mono text-[9px] text-ink-faint"
+                >
+                  {isFolder && row.hasChildren ? (row.expanded ? "▾" : "▸") : ""}
+                </span>
+
+                {isRenaming ? (
+                  <input
+                    autoFocus
+                    value={renaming.value}
+                    onChange={(event) => setRenaming({ ...renaming, value: event.target.value })}
+                    onClick={(event) => event.stopPropagation()}
+                    onBlur={commitRename}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void commitRename();
+                      }
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        setRenaming(null);
+                      }
+                    }}
+                    className="min-w-0 flex-1 border border-accent bg-ground px-1 text-[13px] text-ink outline-none"
+                  />
+                ) : (
+                  <span className="truncate">{row.node.name}</span>
+                )}
+
+                <span className="ml-auto shrink-0 pl-2 font-mono text-[10px] tracking-tight text-ink-faint group-hover:hidden">
+                  {isFolder
+                    ? row.node.children.length > 0
+                      ? String(row.node.children.length)
+                      : ""
+                    : isSelected
+                      ? formatBytes(row.node.byteSize)
+                      : languageLabel(row.node)}
+                </span>
+
+                <button
+                  type="button"
+                  aria-label={`Actions for ${row.node.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setMenu({ id: row.node.id, kind: row.node.type, name: row.node.name });
+                  }}
+                  className="hidden h-5 w-5 shrink-0 items-center justify-center text-ink-faint hover:text-ink group-hover:flex"
+                >
+                  ⋯
+                </button>
+
+                {menuOpen ? (
+                  <div
+                    data-row-menu
+                    className="absolute right-0 top-6 z-30 w-[168px] border border-rule-strong bg-panel py-1 shadow-none"
+                  >
+                    {isFolder ? (
+                      <>
+                        <MenuItem
+                          onClick={() => {
+                            setMenu(null);
+                            setNewFileTarget({ id: row.node.id, name: row.node.name });
+                          }}
+                        >
+                          New file
+                        </MenuItem>
+                        <MenuItem
+                          onClick={() => {
+                            setMenu(null);
+                            setNewFolderTarget({ id: row.node.id, name: row.node.name });
+                          }}
+                        >
+                          New folder
+                        </MenuItem>
+                      </>
+                    ) : null}
+                    <MenuItem
+                      onClick={() => {
+                        setMenu(null);
+                        setRenaming({ id: row.node.id, kind: row.node.type, value: row.node.name });
+                      }}
+                    >
+                      Rename
+                    </MenuItem>
+                    <MenuItem
+                      danger
+                      onClick={() => {
+                        setMenu(null);
+                        setTrashTarget(row.node);
+                      }}
+                    >
+                      Move to trash
+                    </MenuItem>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {newFileTarget ? (
+        <NewFileDialog
+          folderId={newFileTarget.id}
+          folderName={newFileTarget.name}
+          onClose={() => setNewFileTarget(null)}
+          onCreated={(fileId) => {
+            setNewFileTarget(null);
+            if (newFileTarget.id) {
+              setExpanded((current) => new Set(current).add(newFileTarget.id!));
+            }
+            router.replace(`${pathname}?f=${fileId}`, { scroll: false });
+            router.refresh();
+          }}
+        />
+      ) : null}
+
+      {newFolderTarget ? (
+        <NewFolderDialog
+          parentId={newFolderTarget.id}
+          parentName={newFolderTarget.name}
+          onClose={() => setNewFolderTarget(null)}
+          onCreated={(folderId) => {
+            const parentId = newFolderTarget.id;
+            setNewFolderTarget(null);
+            if (parentId) setExpanded((current) => new Set(current).add(parentId));
+            setExpanded((current) => new Set(current).add(folderId));
+            router.refresh();
+          }}
+        />
+      ) : null}
+
+      {trashTarget ? (
+        <ConfirmDialog
+          title={`Move ${trashTarget.type === "folder" ? "folder" : "file"} to trash`}
+          body={
+            trashTarget.type === "folder"
+              ? `“${trashTarget.name}” and everything inside it goes to the trash: ${trashCounts?.folders ?? 0} subfolders, ${trashCounts?.files ?? 0} files. You can restore it for 30 days.`
+              : `“${trashTarget.name}” goes to the trash. You can restore it for 30 days.`
+          }
+          confirmLabel="Move to trash"
+          onClose={() => setTrashTarget(null)}
+          onConfirm={commitTrash}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function MenuItem({
+  children,
+  onClick,
+  danger,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "block w-full px-3 py-1.5 text-left text-[12px] hover:bg-[#161b18]",
+        danger ? "text-accent" : "text-ink-dim hover:text-ink",
+      ].join(" ")}
+    >
+      {children}
+    </button>
   );
 }

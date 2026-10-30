@@ -1,10 +1,136 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
+
+export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
+
+export type FileKind = "markdown" | "code";
+
+/**
+ * Database errors are translated here rather than shown raw. The trigger
+ * messages are stable strings, so matching them is safe and keeps the UI copy
+ * in one place.
+ */
+function explain(message: string): string {
+  if (/duplicate key|unique/i.test(message)) {
+    return "Something with that name already exists here.";
+  }
+  if (/invalid_(file|folder)_name/.test(message)) {
+    return "That name isn't allowed. No slashes, and it can't be empty.";
+  }
+  if (/file_limit_reached/.test(message)) {
+    return "You've reached the limit of 2,000 files.";
+  }
+  if (/folder_limit_reached/.test(message)) {
+    return "You've reached the limit of 500 folders.";
+  }
+  if (/parent_not_owned|row-level security/i.test(message)) {
+    return "That folder isn't yours.";
+  }
+  if (/parent_trashed/.test(message)) {
+    return "The destination is in the trash.";
+  }
+  if (/folder_cycle/.test(message)) {
+    return "A folder can't move inside itself.";
+  }
+  return "That didn't work. Try again.";
+}
+
+async function requireUser() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  return user;
+}
 
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+export async function createFolder(
+  parentId: string | null,
+  name: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("folders")
+    .insert({
+      owner_id: user.id,
+      parent_id: parentId,
+      name: name.trim(),
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
+  return { ok: true, id: data.id };
+}
+
+export async function createFile(input: {
+  folderId: string | null;
+  name: string;
+  kind: FileKind;
+  language: string | null;
+}): Promise<ActionResult> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("files")
+    .insert({
+      owner_id: user.id,
+      folder_id: input.folderId,
+      name: input.name.trim(),
+      kind: input.kind,
+      language: input.kind === "code" ? input.language : null,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
+  return { ok: true, id: data.id };
+}
+
+export async function renameNode(
+  kind: "folder" | "file",
+  id: string,
+  name: string,
+): Promise<ActionResult> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const table = kind === "folder" ? "folders" : "files";
+  const { error } = await supabase.from(table).update({ name: name.trim() }).eq("id", id);
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
+  return { ok: true };
+}
+
+export async function trashNode(
+  kind: "folder" | "file",
+  id: string,
+): Promise<ActionResult> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc("trash_node", {
+    p_kind: kind,
+    p_id: id,
+  });
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
+  return { ok: true };
 }
