@@ -10,6 +10,7 @@ import {
   type TreeNode,
 } from "@/lib/tree";
 import { renameNode, trashNode } from "./actions";
+import { TypeIcon } from "./icons";
 import { ConfirmDialog, NewFileDialog, NewFolderDialog } from "./dialogs";
 
 const EXPANDED_KEY = "nested.expanded";
@@ -476,6 +477,11 @@ export function WorkspaceTree({
                   {isFolder && row.hasChildren ? (row.expanded ? "▾" : "▸") : ""}
                 </span>
 
+                <TypeIcon
+                  kind={isFolder ? "folder" : row.node.kind === "code" ? "code" : "text"}
+                  className={isSelected ? "text-accent" : "text-ink-faint"}
+                />
+
                 {isRenaming ? (
                   <input
                     autoFocus
@@ -545,6 +551,18 @@ export function WorkspaceTree({
                           New folder
                         </MenuItem>
                       </>
+                    ) : null}
+                    {!isFolder ? (
+                      <MenuItem
+                        onClick={() => {
+                          setMenu(null);
+                          router.replace(`${pathname}?f=${row.node.id}&versions=1`, {
+                            scroll: false,
+                          });
+                        }}
+                      >
+                        Version history
+                      </MenuItem>
                     ) : null}
                     <MenuItem
                       onClick={() => {

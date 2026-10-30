@@ -19,7 +19,7 @@ export const instant = false;
 export default async function AppPage({
   searchParams,
 }: {
-  searchParams: Promise<{ f?: string }>;
+  searchParams: Promise<{ f?: string; versions?: string }>;
 }) {
   await connection();
 
@@ -67,7 +67,12 @@ export default async function AppPage({
         </aside>
 
         {openFile ? (
-          <FilePane key={openFile.id} file={openFile} userId={user.id} />
+          <FilePane
+            key={openFile.id}
+            file={openFile}
+            userId={user.id}
+            openVersions={params.versions === "1"}
+          />
         ) : (
           <section className="flex min-w-0 flex-1 items-center justify-center px-6">
             <div className="max-w-sm">

@@ -2,12 +2,14 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { redo, undo } from "@codemirror/commands";
 import type { EditorView } from "@codemirror/view";
 import type { OpenFile } from "@/lib/files";
 import { deleteDraft, getDraft, putDraft, type Draft } from "@/lib/drafts";
+import { removeBlankLines, tidyBlankLines } from "@/lib/whitespace";
 import { saveFile } from "./actions";
+import { VersionHistoryDialog } from "./dialogs";
 
 const CodeEditor = dynamic(() => import("./editor").then((module) => module.CodeEditor), {
   ssr: false,
@@ -30,9 +32,27 @@ function timeOf(iso: string) {
   }
 }
 
-export function FilePane({ file, userId }: { file: OpenFile; userId: string }) {
+export function FilePane({
+  file,
+  userId,
+  openVersions = false,
+}: {
+  file: OpenFile;
+  userId: string;
+  openVersions?: boolean;
+}) {
   const router = useRouter();
+  const pathname = usePathname();
   const cached = buffers.get(file.id);
+  const [versionsOpen, setVersionsOpen] = useState(openVersions);
+
+  // "Version history" arrives as ?versions=1 from the tree menu. Consume it and
+  // clean the URL, so the same menu item works again after closing.
+  useEffect(() => {
+    if (!openVersions) return;
+    setVersionsOpen(true);
+    router.replace(`${pathname}?f=${file.id}`, { scroll: false });
+  }, [openVersions, file.id, pathname, router]);
 
   const [text, setText] = useState(cached?.text ?? file.content);
   const [savedText, setSavedText] = useState(file.content);
@@ -157,6 +177,18 @@ export function FilePane({ file, userId }: { file: OpenFile; userId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id, savedText, revision, userId]);
 
+  /** Replaces the whole document in one transaction, so one undo puts it back. */
+  function transform(next: (value: string) => string) {
+    const view = viewRef.current;
+    if (!view) return;
+    const current = view.state.doc.toString();
+    const result = next(current);
+    if (result === current) return;
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: result },
+    });
+  }
+
   function restoreDraft() {
     if (!draft || !viewRef.current) {
       setDraft(null);
@@ -220,6 +252,35 @@ export function FilePane({ file, userId }: { file: OpenFile; userId: string }) {
             ↷
           </button>
 
+          {file.kind === "code" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => transform((value) => tidyBlankLines(value, file.language))}
+                title="Remove redundant blank lines, keep the ones between blocks"
+                className="ml-1 h-7 border border-transparent px-2 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule hover:text-ink"
+              >
+                tidy
+              </button>
+              <button
+                type="button"
+                onClick={() => transform(removeBlankLines)}
+                title="Remove every blank line"
+                className="h-7 border border-transparent px-2 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule hover:text-ink"
+              >
+                flat
+              </button>
+            </>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() => setVersionsOpen(true)}
+            className="ml-1 h-7 border border-transparent px-2 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule hover:text-ink"
+          >
+            versions
+          </button>
+
           <button
             type="button"
             onClick={() => void save()}
@@ -273,6 +334,23 @@ export function FilePane({ file, userId }: { file: OpenFile; userId: string }) {
             discard
           </button>
         </div>
+      ) : null}
+
+      {versionsOpen ? (
+        <VersionHistoryDialog
+          fileId={file.id}
+          fileName={file.name}
+          onClose={() => setVersionsOpen(false)}
+          onRestore={(content) => {
+            const view = viewRef.current;
+            if (view) {
+              view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: content },
+              });
+            }
+            setVersionsOpen(false);
+          }}
+        />
       ) : null}
 
       <div className="min-h-0 flex-1">

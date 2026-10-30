@@ -17,6 +17,9 @@ function explain(message: string): string {
   if (/duplicate key|unique/i.test(message)) {
     return "Something with that name already exists here.";
   }
+  if (/version_not_found/.test(message)) {
+    return "That version no longer exists.";
+  }
   if (/revision_conflict/.test(message)) {
     return "This file changed somewhere else. Reload it before saving.";
   }
@@ -158,6 +161,62 @@ export async function saveFile(
   const row = Array.isArray(data) ? data[0] : data;
   revalidatePath("/app");
   return { ok: true, revision: (row?.revision as number | undefined) ?? expectedRevision + 1 };
+}
+
+export type VersionSummary = {
+  id: string;
+  source: "file" | "project" | "auto";
+  label: string | null;
+  byte_size: number;
+  created_at: string;
+  source_revision: number;
+};
+
+export async function listVersions(
+  fileId: string,
+): Promise<{ ok: true; versions: VersionSummary[] } | { ok: false; error: string }> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("versions")
+    .select("id, source, label, byte_size, created_at, source_revision")
+    .eq("file_id", fileId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (error) return { ok: false, error: explain(error.message) };
+  return { ok: true, versions: (data ?? []) as VersionSummary[] };
+}
+
+/**
+ * Returns the stored content. It does not write the file: the caller puts it
+ * in the buffer, and the user decides whether to save it.
+ */
+export async function restoreVersion(
+  versionId: string,
+): Promise<{ ok: true; content: string } | { ok: false; error: string }> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("restore_version", {
+    p_version_id: versionId,
+  });
+
+  if (error) return { ok: false, error: explain(error.message) };
+  revalidatePath("/app");
+  return { ok: true, content: (data as string) ?? "" };
+}
+
+export async function deleteVersion(versionId: string): Promise<ActionResult> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("versions").delete().eq("id", versionId);
+
+  if (error) return { ok: false, error: explain(error.message) };
+  revalidatePath("/app");
+  return { ok: true };
 }
 
 export async function trashNode(

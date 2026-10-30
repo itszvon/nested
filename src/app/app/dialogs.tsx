@@ -1,7 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createFile, createFolder, type FileKind } from "./actions";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createFile,
+  createFolder,
+  deleteVersion,
+  listVersions,
+  restoreVersion,
+  type FileKind,
+  type VersionSummary,
+} from "./actions";
 
 const LANGUAGES = [
   { id: "python", label: "Python", ext: "py" },
@@ -278,6 +286,187 @@ export function NewFolderDialog({
           </button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+const SOURCE_LABEL: Record<VersionSummary["source"], string> = {
+  file: "save",
+  project: "project",
+  auto: "auto",
+};
+
+function stampDate(iso: string) {
+  const date = new Date(iso);
+  return {
+    day: date.toLocaleDateString([], { year: "numeric", month: "short", day: "2-digit" }),
+    time: date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+  };
+}
+
+/**
+ * The per-file history. Restoring puts the content into the buffer, it does not
+ * write the file, so the user still decides when to save.
+ */
+export function VersionHistoryDialog({
+  fileId,
+  fileName,
+  onClose,
+  onRestore,
+}: {
+  fileId: string;
+  fileName: string;
+  onClose: () => void;
+  onRestore: (content: string) => void;
+}) {
+  const [versions, setVersions] = useState<VersionSummary[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [hideAuto, setHideAuto] = useState(false);
+
+  const load = useCallback(async () => {
+    const result = await listVersions(fileId);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setVersions(result.versions);
+  }, [fileId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function restore(id: string) {
+    setBusyId(id);
+    const result = await restoreVersion(id);
+    setBusyId(null);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    onRestore(result.content);
+    await load();
+  }
+
+  async function remove(id: string) {
+    setBusyId(id);
+    const result = await deleteVersion(id);
+    setBusyId(null);
+    setConfirmDelete(null);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    await load();
+  }
+
+  const visible = (versions ?? []).filter((version) => !hideAuto || version.source !== "auto");
+
+  return (
+    <Modal title={`Version history — ${fileName}`} onClose={onClose}>
+      <div className="flex items-center gap-3 border-b border-rule px-4 py-2">
+        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
+          {versions === null ? "loading" : `${visible.length} version${visible.length === 1 ? "" : "s"}`}
+        </span>
+        <button
+          type="button"
+          onClick={() => setHideAuto((value) => !value)}
+          aria-pressed={hideAuto}
+          className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-ink"
+        >
+          {hideAuto ? "show auto" : "hide auto"}
+        </button>
+      </div>
+
+      {error ? (
+        <p className="border-b border-rule bg-accent/10 px-4 py-2 text-[11px] text-ink">{error}</p>
+      ) : null}
+
+      <div className="max-h-[46vh] overflow-y-auto">
+        {versions !== null && visible.length === 0 ? (
+          <p className="px-4 py-6 text-[12px] leading-relaxed text-ink-faint">
+            No saved versions yet. Press Save File to create one.
+          </p>
+        ) : null}
+
+        {visible.map((version) => {
+          const when = stampDate(version.created_at);
+          const confirming = confirmDelete === version.id;
+
+          return (
+            <div
+              key={version.id}
+              className="flex items-center gap-3 border-b border-rule px-4 py-2 text-[11px]"
+            >
+              <span className="w-[86px] shrink-0 font-mono text-[10px] text-ink-faint">
+                {when.day}
+              </span>
+              <span className="w-[64px] shrink-0 font-mono text-[10px] text-ink-dim">
+                {when.time}
+              </span>
+              <span className="w-[54px] shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
+                {SOURCE_LABEL[version.source]}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[11px] text-ink-dim">
+                {version.label ?? ""}
+              </span>
+              <span className="shrink-0 font-mono text-[10px] text-ink-faint">
+                {version.byte_size} B
+              </span>
+
+              {confirming ? (
+                <span className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void remove(version.id)}
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent"
+                  >
+                    delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(null)}
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint"
+                  >
+                    no
+                  </button>
+                </span>
+              ) : (
+                <span className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={busyId === version.id}
+                    onClick={() => void restore(version.id)}
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-dim hover:text-ink disabled:opacity-40"
+                  >
+                    restore
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyId === version.id}
+                    onClick={() => setConfirmDelete(version.id)}
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-accent disabled:opacity-40"
+                  >
+                    delete
+                  </button>
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex justify-end px-4 py-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-7 border border-rule px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-dim"
+        >
+          Close
+        </button>
+      </div>
     </Modal>
   );
 }
