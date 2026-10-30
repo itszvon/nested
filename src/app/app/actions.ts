@@ -17,6 +17,18 @@ function explain(message: string): string {
   if (/duplicate key|unique/i.test(message)) {
     return "Something with that name already exists here.";
   }
+  if (/revision_conflict/.test(message)) {
+    return "This file changed somewhere else. Reload it before saving.";
+  }
+  if (/quota_exceeded/.test(message)) {
+    return "You're at the 25 MB limit. Delete some versions or empty the trash.";
+  }
+  if (/file_too_large/.test(message)) {
+    return "That's over the 2 MB limit for a single file.";
+  }
+  if (/file_not_found/.test(message)) {
+    return "That file no longer exists.";
+  }
   if (/extension_required/.test(message)) {
     return "Code files need an extension, like .py or .js.";
   }
@@ -121,6 +133,31 @@ export async function renameNode(
 
   revalidatePath("/app");
   return { ok: true };
+}
+
+export type SaveResult =
+  | { ok: true; revision: number }
+  | { ok: false; error: string };
+
+export async function saveFile(
+  fileId: string,
+  content: string,
+  expectedRevision: number,
+): Promise<SaveResult> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("save_file", {
+    p_file_id: fileId,
+    p_content: content,
+    p_expected_revision: expectedRevision,
+  });
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  revalidatePath("/app");
+  return { ok: true, revision: (row?.revision as number | undefined) ?? expectedRevision + 1 };
 }
 
 export async function trashNode(

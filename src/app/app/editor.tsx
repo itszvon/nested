@@ -1,0 +1,194 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import {
+  EditorView,
+  drawSelection,
+  dropCursor,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  keymap,
+  lineNumbers,
+  rectangularSelection,
+} from "@codemirror/view";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import {
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+} from "@codemirror/autocomplete";
+import {
+  bracketMatching,
+  foldGutter,
+  foldKeymap,
+  indentOnInput,
+  syntaxHighlighting,
+} from "@codemirror/language";
+import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
+
+const ledgerTheme = EditorView.theme(
+  {
+    "&": {
+      backgroundColor: "transparent",
+      color: "var(--color-ink)",
+      height: "100%",
+      fontSize: "13px",
+    },
+    ".cm-scroller": {
+      fontFamily: "var(--font-mono)",
+      lineHeight: "1.65",
+      overflow: "auto",
+    },
+    ".cm-content": {
+      padding: "12px 0 45vh 0",
+      caretColor: "var(--color-accent)",
+    },
+    ".cm-gutters": {
+      backgroundColor: "transparent",
+      color: "var(--color-ink-faint)",
+      border: "none",
+      paddingRight: "4px",
+    },
+    ".cm-activeLine": { backgroundColor: "rgba(255,255,255,0.025)" },
+    ".cm-activeLineGutter": {
+      backgroundColor: "transparent",
+      color: "var(--color-ink-dim)",
+    },
+    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
+      { backgroundColor: "rgba(168,68,47,0.32)" },
+    ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--color-accent)" },
+    ".cm-searchMatch": { backgroundColor: "rgba(168,68,47,0.28)" },
+    ".cm-searchMatch.cm-searchMatch-selected": { backgroundColor: "rgba(168,68,47,0.5)" },
+    ".cm-panels": {
+      backgroundColor: "var(--color-panel)",
+      color: "var(--color-ink)",
+      borderColor: "var(--color-rule)",
+    },
+    ".cm-panels input, .cm-panels button": {
+      backgroundColor: "var(--color-ground)",
+      color: "var(--color-ink)",
+      border: "1px solid var(--color-rule)",
+    },
+    ".cm-tooltip": {
+      backgroundColor: "var(--color-panel)",
+      border: "1px solid var(--color-rule-strong)",
+    },
+    ".cm-tooltip-autocomplete ul li[aria-selected]": {
+      backgroundColor: "var(--color-accent-dim)",
+      color: "var(--color-ink)",
+    },
+  },
+  { dark: true },
+);
+
+async function loadLanguage(language: string | null): Promise<Extension[]> {
+  switch (language) {
+    case "python":
+      return [(await import("@codemirror/lang-python")).python()];
+    case "java":
+      return [(await import("@codemirror/lang-java")).java()];
+    case "javascript":
+      return [(await import("@codemirror/lang-javascript")).javascript()];
+    case "html":
+      return [(await import("@codemirror/lang-html")).html()];
+    case "css":
+      return [(await import("@codemirror/lang-css")).css()];
+    case "cpp":
+      return [(await import("@codemirror/lang-cpp")).cpp()];
+    default:
+      return [];
+  }
+}
+
+export function CodeEditor({
+  kind,
+  language,
+  initialText,
+  onChange,
+  onView,
+}: {
+  kind: "markdown" | "code";
+  language: string | null;
+  initialText: string;
+  onChange: (text: string) => void;
+  onView: (view: EditorView | null) => void;
+}) {
+  const host = useRef<HTMLDivElement>(null);
+  const languageSlot = useRef(new Compartment());
+  const changeHandler = useRef(onChange);
+  changeHandler.current = onChange;
+
+  useEffect(() => {
+    if (!host.current) return;
+
+    const isCode = kind === "code";
+
+    const state = EditorState.create({
+      doc: initialText,
+      extensions: [
+        history({ minDepth: 1000, newGroupDelay: 400 }),
+        drawSelection(),
+        dropCursor(),
+        EditorState.allowMultipleSelections.of(true),
+        rectangularSelection(),
+        indentOnInput(),
+        bracketMatching(),
+        closeBrackets(),
+        autocompletion(),
+        highlightActiveLine(),
+        highlightSelectionMatches(),
+        syntaxHighlighting(oneDarkHighlightStyle),
+        ledgerTheme,
+        keymap.of([
+          ...closeBracketsKeymap,
+          ...defaultKeymap,
+          ...searchKeymap,
+          ...historyKeymap,
+          ...completionKeymap,
+          ...foldKeymap,
+          indentWithTab,
+        ]),
+        // Text files are plain: wrapping on, no gutter, no folding, no
+        // highlighting. Code files get the full instrument panel.
+        ...(isCode
+          ? [lineNumbers(), highlightActiveLineGutter(), foldGutter()]
+          : [EditorView.lineWrapping]),
+        languageSlot.current.of([]),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) changeHandler.current(update.state.doc.toString());
+        }),
+      ],
+    });
+
+    const view = new EditorView({ state, parent: host.current });
+    onView(view);
+
+    // Language packs are large; load only the one this file needs.
+    if (isCode && language) {
+      let cancelled = false;
+      void loadLanguage(language).then((extensions) => {
+        if (cancelled) return;
+        view.dispatch({
+          effects: languageSlot.current.reconfigure(extensions),
+        });
+      });
+      return () => {
+        cancelled = true;
+        onView(null);
+        view.destroy();
+      };
+    }
+
+    return () => {
+      onView(null);
+      view.destroy();
+    };
+    // The parent remounts with a new key per file, so this runs once per file.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return <div ref={host} className="h-full overflow-hidden" />;
+}
