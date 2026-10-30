@@ -19,7 +19,7 @@ export async function getWorkspaceRows(): Promise<{
       .is("deleted_at", null),
     supabase
       .from("files")
-      .select("id, folder_id, name, kind, language, revision, byte_size, updated_at")
+      .select("id, folder_id, project_id, name, kind, language, revision, byte_size, updated_at")
       .is("deleted_at", null),
   ]);
 

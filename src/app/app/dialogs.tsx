@@ -5,9 +5,12 @@ import {
   createFile,
   createFolder,
   deleteVersion,
+  listSnapshots,
   listVersions,
+  restoreProjectSnapshot,
   restoreVersion,
   type FileKind,
+  type SnapshotSummary,
   type VersionSummary,
 } from "./actions";
 
@@ -286,6 +289,201 @@ export function NewFolderDialog({
           </button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+export function SaveProjectDialog({
+  fileCount,
+  onClose,
+  onSave,
+}: {
+  fileCount: number;
+  onClose: () => void;
+  onSave: (message: string) => Promise<void>;
+}) {
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onSave(message.trim());
+    } catch (thrown) {
+      setError(thrown instanceof Error ? thrown.message : "That didn't work.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title="Save project" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-3 p-4">
+        <p className="text-[12px] leading-relaxed text-ink-dim">
+          {fileCount} changed file{fileCount === 1 ? "" : "s"} will be saved together as one
+          snapshot.
+        </p>
+        <input
+          autoFocus
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          placeholder="message (optional)"
+          aria-label="Snapshot message"
+          className={fieldClass}
+        />
+        {error ? <p className="text-[11px] text-red-300">{error}</p> : null}
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-8 border border-rule px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-dim"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={busy}
+            className="h-8 border border-accent bg-accent px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white disabled:opacity-50"
+          >
+            {busy ? "Saving" : "Save project"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export function ProjectHistoryDialog({
+  projectId,
+  projectName,
+  onClose,
+  onRestored,
+}: {
+  projectId: string;
+  projectName: string;
+  onClose: () => void;
+  onRestored: () => void;
+}) {
+  const [snapshots, setSnapshots] = useState<SnapshotSummary[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const result = await listSnapshots(projectId);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setSnapshots(result.snapshots);
+  }, [projectId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function restore(id: string) {
+    setBusy(true);
+    const result = await restoreProjectSnapshot(id);
+    setBusy(false);
+    setConfirming(null);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setNote(`Restored ${result.changed} file${result.changed === 1 ? "" : "s"}.`);
+    onRestored();
+    await load();
+  }
+
+  return (
+    <Modal title={`Project history — ${projectName}`} onClose={onClose}>
+      {error ? (
+        <p className="border-b border-rule bg-accent/10 px-4 py-2 text-[11px] text-ink">{error}</p>
+      ) : null}
+      {note ? (
+        <p className="border-b border-rule px-4 py-2 text-[11px] text-ink-dim">{note}</p>
+      ) : null}
+
+      <div className="max-h-[46vh] overflow-y-auto">
+        {snapshots !== null && snapshots.length === 0 ? (
+          <p className="px-4 py-6 text-[12px] leading-relaxed text-ink-faint">
+            No project snapshots yet. Save Project creates one and captures every changed file
+            at once.
+          </p>
+        ) : null}
+
+        {snapshots?.map((snapshot) => {
+          const when = stampDate(snapshot.created_at);
+          const asking = confirming === snapshot.id;
+
+          return (
+            <div
+              key={snapshot.id}
+              className="flex items-center gap-3 border-b border-rule px-4 py-2 text-[11px]"
+            >
+              <span className="w-[86px] shrink-0 font-mono text-[10px] text-ink-faint">
+                {when.day}
+              </span>
+              <span className="w-[64px] shrink-0 font-mono text-[10px] text-ink-dim">
+                {when.time}
+              </span>
+              <span className="w-[92px] shrink-0 font-mono text-[10px] text-ink-faint">
+                {snapshot.file_count} file{snapshot.file_count === 1 ? "" : "s"}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[11px] text-ink-dim">
+                {snapshot.message ?? ""}
+              </span>
+
+              {asking ? (
+                <span className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void restore(snapshot.id)}
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent"
+                  >
+                    restore all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(null)}
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint"
+                  >
+                    no
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirming(snapshot.id)}
+                  className="shrink-0 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-dim hover:text-ink"
+                >
+                  restore
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-between px-4 py-2">
+        <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
+          restoring writes every changed file
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-7 border border-rule px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-dim"
+        >
+          Close
+        </button>
+      </div>
     </Modal>
   );
 }

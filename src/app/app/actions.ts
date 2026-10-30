@@ -17,6 +17,15 @@ function explain(message: string): string {
   if (/duplicate key|unique/i.test(message)) {
     return "Something with that name already exists here.";
   }
+  if (/snapshot_not_found/.test(message)) {
+    return "That snapshot no longer exists.";
+  }
+  if (/project_not_found/.test(message)) {
+    return "That project no longer exists.";
+  }
+  if (/file_not_in_project/.test(message)) {
+    return "One of those files isn't in this project any more.";
+  }
   if (/version_not_found/.test(message)) {
     return "That version no longer exists.";
   }
@@ -217,6 +226,77 @@ export async function deleteVersion(versionId: string): Promise<ActionResult> {
   if (error) return { ok: false, error: explain(error.message) };
   revalidatePath("/app");
   return { ok: true };
+}
+
+export type SnapshotSummary = {
+  id: string;
+  message: string | null;
+  file_count: number;
+  total_bytes: number;
+  created_at: string;
+};
+
+export type SaveProjectItem = {
+  fileId: string;
+  content: string;
+  expectedRevision: number;
+};
+
+export async function saveProject(
+  projectId: string,
+  message: string,
+  items: SaveProjectItem[],
+): Promise<{ ok: true; saved: number; skipped: number } | { ok: false; error: string }> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("save_project", {
+    p_project_id: projectId,
+    p_message: message,
+    p_items: items.map((item) => ({
+      file_id: item.fileId,
+      content: item.content,
+      expected_revision: item.expectedRevision,
+    })),
+  });
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  revalidatePath("/app");
+  return { ok: true, saved: row?.saved ?? 0, skipped: row?.skipped ?? 0 };
+}
+
+export async function listSnapshots(
+  projectId: string,
+): Promise<{ ok: true; snapshots: SnapshotSummary[] } | { ok: false; error: string }> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("snapshots")
+    .select("id, message, file_count, total_bytes, created_at")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (error) return { ok: false, error: explain(error.message) };
+  return { ok: true, snapshots: (data ?? []) as SnapshotSummary[] };
+}
+
+export async function restoreProjectSnapshot(
+  snapshotId: string,
+): Promise<{ ok: true; changed: number } | { ok: false; error: string }> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("restore_project", {
+    p_snapshot_id: snapshotId,
+  });
+
+  if (error) return { ok: false, error: explain(error.message) };
+  revalidatePath("/app");
+  return { ok: true, changed: (data as number) ?? 0 };
 }
 
 export async function trashNode(

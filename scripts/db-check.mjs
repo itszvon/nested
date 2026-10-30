@@ -281,6 +281,69 @@ async function main() {
     ok("restore snapshots drifted content before overwriting", auto?.content === "drifted");
   });
 
+  console.log("\nproject snapshots");
+  let snapId;
+  const projectFiles = [];
+  await asUser(A, async () => {
+    const proj = (
+      await one("insert into public.folders (owner_id, name) values ($1,'Snap') returning id", [A])
+    ).id;
+    const fa = (
+      await one(
+        `insert into public.files (owner_id, folder_id, name, kind, content)
+         values ($1,$2,'a.py','code','x = 1') returning id`,
+        [A, proj],
+      )
+    ).id;
+    const fb = (
+      await one(
+        `insert into public.files (owner_id, folder_id, name, kind, content)
+         values ($1,$2,'b.js','code','y = 1') returning id`,
+        [A, proj],
+      )
+    ).id;
+    projectFiles.push(fa, fb);
+
+    const items = JSON.stringify([
+      { file_id: fa, content: "x = 2", expected_revision: 1 },
+      { file_id: fb, content: "y = 2", expected_revision: 1 },
+    ]);
+
+    const saved = await one("select * from public.save_project($1,$2,$3::jsonb)", [
+      proj,
+      "first",
+      items,
+    ]);
+    ok("save_project returns a snapshot", Boolean(saved.snapshot_id));
+    ok("save_project saved both files", saved.saved === 2, String(saved.saved));
+    snapId = saved.snapshot_id;
+
+    const revs = await client.query(
+      "select revision from public.files where id = any($1::uuid[])",
+      [projectFiles],
+    );
+    ok(
+      "save_project bumps every revision once",
+      revs.rows.every((row) => row.revision === 2),
+    );
+  });
+
+  await asUser(A, async () => {
+    await client.query("select public.save_file($1,$2,2)", [projectFiles[0], "x = 3"]);
+
+    const changed = await one("select public.restore_project($1) as n", [snapId]);
+    ok("restore_project reports one changed file", changed.n === 1, String(changed.n));
+
+    const row = await one("select content from public.files where id = $1", [projectFiles[0]]);
+    ok("restore_project writes the snapshot content", row.content === "x = 2", row.content);
+
+    const auto = await one(
+      "select count(*)::int as n from public.versions where file_id = $1 and source = 'auto'",
+      [projectFiles[0]],
+    );
+    ok("restore_project snapshots the replaced content", auto.n >= 1);
+  });
+
   console.log("\ntrash and restore");
   let trashFile;
   await asUser(A, async () => {

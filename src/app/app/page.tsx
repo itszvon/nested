@@ -19,7 +19,7 @@ export const instant = false;
 export default async function AppPage({
   searchParams,
 }: {
-  searchParams: Promise<{ f?: string; versions?: string }>;
+  searchParams: Promise<{ f?: string; versions?: string; r?: string }>;
 }) {
   await connection();
 
@@ -68,7 +68,7 @@ export default async function AppPage({
 
         {openFile ? (
           <FilePane
-            key={openFile.id}
+            key={`${openFile.id}:${params.r ?? "0"}`}
             file={openFile}
             userId={user.id}
             openVersions={params.versions === "1"}

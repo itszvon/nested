@@ -17,6 +17,7 @@ export type FolderRow = {
 export type FileRow = {
   id: string;
   folder_id: string | null;
+  project_id: string | null;
   name: string;
   kind: FileKind;
   language: string | null;
@@ -30,6 +31,7 @@ export type TreeNode = {
   name: string;
   type: "folder" | "file";
   parentId: string | null;
+  projectId?: string | null;
   kind?: FileKind;
   language?: string | null;
   revision?: number;
@@ -100,6 +102,7 @@ export function buildWorkspace(folders: FolderRow[], files: FileRow[]): Workspac
       name: row.name,
       type: "file",
       parentId: row.folder_id,
+      projectId: row.project_id,
       kind: row.kind,
       language: row.language,
       revision: row.revision,

@@ -7,9 +7,15 @@ import { redo, undo } from "@codemirror/commands";
 import type { EditorView } from "@codemirror/view";
 import type { OpenFile } from "@/lib/files";
 import { deleteDraft, getDraft, putDraft, type Draft } from "@/lib/drafts";
+import {
+  buffersInProject,
+  deleteBuffer,
+  getBuffer,
+  setBuffer,
+} from "@/lib/buffers";
 import { removeBlankLines, tidyBlankLines } from "@/lib/whitespace";
-import { saveFile } from "./actions";
-import { VersionHistoryDialog } from "./dialogs";
+import { saveFile, saveProject, type SaveProjectItem } from "./actions";
+import { SaveProjectDialog, VersionHistoryDialog } from "./dialogs";
 
 const CodeEditor = dynamic(() => import("./editor").then((module) => module.CodeEditor), {
   ssr: false,
@@ -17,12 +23,6 @@ const CodeEditor = dynamic(() => import("./editor").then((module) => module.Code
     <div className="px-4 py-3 font-mono text-[11px] text-ink-faint">loading editor</div>
   ),
 });
-
-/**
- * Buffers survive switching files for the session, without touching the
- * database. A module-level map is enough: it dies with the tab.
- */
-const buffers = new Map<string, { text: string; baseRevision: number }>();
 
 function timeOf(iso: string) {
   try {
@@ -43,8 +43,9 @@ export function FilePane({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const cached = buffers.get(file.id);
+  const cached = getBuffer(file.id);
   const [versionsOpen, setVersionsOpen] = useState(openVersions);
+  const [saveProjectOpen, setSaveProjectOpen] = useState(false);
 
   // "Version history" arrives as ?versions=1 from the tree menu. Consume it and
   // clean the URL, so the same menu item works again after closing.
@@ -72,7 +73,7 @@ export function FilePane({
   // Look for a draft left behind by a crash. Only offered when it differs from
   // what the server has, so a successful save never nags.
   useEffect(() => {
-    if (buffers.has(file.id)) return;
+    if (getBuffer(file.id)) return;
 
     let cancelled = false;
     void getDraft(userId, file.id).then((found) => {
@@ -132,7 +133,7 @@ export function FilePane({
     setSavedText(value);
     setRevision(result.revision);
     setSavedAt(new Date().toISOString());
-    buffers.delete(file.id);
+    deleteBuffer(file.id);
     if (draftTimer.current) clearTimeout(draftTimer.current);
     await deleteDraft(userId, file.id);
     router.refresh();
@@ -166,16 +167,57 @@ export function FilePane({
     const id = file.id;
     return () => {
       const value = textRef.current;
-      const entry = buffers.get(id);
+      const entry = getBuffer(id);
       if (value !== savedText) {
-        buffers.set(id, { text: value, baseRevision: revision });
+        setBuffer(id, { text: value, baseRevision: revision, projectId: file.project_id });
         void putDraft(userId, id, { text: value, savedAt: Date.now(), baseRevision: revision });
       } else if (entry) {
-        buffers.delete(id);
+        deleteBuffer(id);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id, savedText, revision, userId]);
+
+  const projectDirtyCount = file.project_id
+    ? (dirty ? 1 : 0) +
+      buffersInProject(file.project_id).filter(([id]) => id !== file.id).length
+    : 0;
+
+  /**
+   * Saves every dirty file in this project plus the open buffer as one
+   * snapshot. Files elsewhere are deliberately left alone.
+   */
+  async function saveProjectNow(message: string) {
+    if (!file.project_id) return;
+
+    const items: SaveProjectItem[] = [];
+    if (dirty) {
+      items.push({ fileId: file.id, content: textRef.current, expectedRevision: revision });
+    }
+    for (const [id, buffer] of buffersInProject(file.project_id)) {
+      if (id === file.id) continue;
+      items.push({ fileId: id, content: buffer.text, expectedRevision: buffer.baseRevision });
+    }
+    if (items.length === 0) return;
+
+    const result = await saveProject(file.project_id, message, items);
+    if (!result.ok) throw new Error(result.error);
+
+    for (const item of items) {
+      if (item.fileId !== file.id) deleteBuffer(item.fileId);
+    }
+
+    if (dirty) {
+      setSavedText(textRef.current);
+      // save_project writes exactly one revision per included file.
+      setRevision((current) => current + 1);
+      setSavedAt(new Date().toISOString());
+      await deleteDraft(userId, file.id);
+    }
+
+    setSaveProjectOpen(false);
+    router.refresh();
+  }
 
   /** Replaces the whole document in one transaction, so one undo puts it back. */
   function transform(next: (value: string) => string) {
@@ -291,11 +333,16 @@ export function FilePane({
           </button>
           <button
             type="button"
-            disabled
-            title="Arrives with project saves"
+            onClick={() => setSaveProjectOpen(true)}
+            disabled={projectDirtyCount === 0}
+            title={
+              file.project_id
+                ? "Save every changed file in this project"
+                : "This file is not in a project"
+            }
             className="h-7 border border-rule px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-dim disabled:opacity-40"
           >
-            Save Project
+            {projectDirtyCount > 1 ? `Save Project (${projectDirtyCount})` : "Save Project"}
           </button>
         </div>
       </div>
@@ -334,6 +381,14 @@ export function FilePane({
             discard
           </button>
         </div>
+      ) : null}
+
+      {saveProjectOpen ? (
+        <SaveProjectDialog
+          fileCount={projectDirtyCount}
+          onClose={() => setSaveProjectOpen(false)}
+          onSave={saveProjectNow}
+        />
       ) : null}
 
       {versionsOpen ? (

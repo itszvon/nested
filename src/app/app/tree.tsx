@@ -11,7 +11,13 @@ import {
 } from "@/lib/tree";
 import { renameNode, trashNode } from "./actions";
 import { TypeIcon } from "./icons";
-import { ConfirmDialog, NewFileDialog, NewFolderDialog } from "./dialogs";
+import { clearBuffers } from "@/lib/buffers";
+import {
+  ConfirmDialog,
+  NewFileDialog,
+  NewFolderDialog,
+  ProjectHistoryDialog,
+} from "./dialogs";
 
 const EXPANDED_KEY = "nested.expanded";
 
@@ -74,6 +80,7 @@ export function WorkspaceTree({
   // without opening any of them.
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [projectHistory, setProjectHistory] = useState<{ id: string; name: string } | null>(null);
   const anchorRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -552,6 +559,16 @@ export function WorkspaceTree({
                         </MenuItem>
                       </>
                     ) : null}
+                    {isFolder && row.node.parentId === null ? (
+                      <MenuItem
+                        onClick={() => {
+                          setMenu(null);
+                          setProjectHistory({ id: row.node.id, name: row.node.name });
+                        }}
+                      >
+                        Project history
+                      </MenuItem>
+                    ) : null}
                     {!isFolder ? (
                       <MenuItem
                         onClick={() => {
@@ -615,6 +632,23 @@ export function WorkspaceTree({
             setNewFolderTarget(null);
             if (parentId) setExpanded((current) => new Set(current).add(parentId));
             setExpanded((current) => new Set(current).add(folderId));
+            router.refresh();
+          }}
+        />
+      ) : null}
+
+      {projectHistory ? (
+        <ProjectHistoryDialog
+          projectId={projectHistory.id}
+          projectName={projectHistory.name}
+          onClose={() => setProjectHistory(null)}
+          onRestored={() => {
+            // Restoring writes files directly, so any buffer holding the old
+            // text is stale. Drop them and force the pane to re-read.
+            clearBuffers();
+            if (selectedId) {
+              router.replace(`${pathname}?f=${selectedId}&r=${Date.now()}`, { scroll: false });
+            }
             router.refresh();
           }}
         />
