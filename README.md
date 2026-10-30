@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nested
 
-## Getting Started
+Notes and code, in folders inside folders. Google sign-in, private by default,
+manual saves with per-file version history, a 30-day trash, and nothing ever
+written to the database without a button press.
 
-First, run the development server:
+- [SPEC.md](SPEC.md) — what the app does
+- [PLAN.md](PLAN.md) — how it gets built, phase by phase
+
+## Setup (one time)
+
+### 1. Supabase project
+
+1. Create a project at [supabase.com](https://supabase.com) on the free plan.
+   Pick the region closest to you.
+2. Project Settings → API. Copy:
+   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
+   - Publishable key → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+Never use the secret key in this app. It has no business in the browser.
+
+### 2. Google sign-in
+
+1. In [Google Cloud Console](https://console.cloud.google.com), create a project.
+2. OAuth consent screen: External, add your own email as a test user while the
+   app is unverified.
+3. Credentials → Create credentials → OAuth client ID → Web application.
+4. Authorized redirect URI: `https://<your-project-ref>.supabase.co/auth/v1/callback`
+5. In Supabase: Authentication → Providers → Google. Enable it and paste the
+   client ID and secret.
+6. In Supabase: Authentication → URL Configuration.
+   - Site URL: `http://localhost:3000`
+   - Redirect URLs: `http://localhost:3000/auth/callback`
+   - Add the production URLs when the app is deployed.
+7. In Supabase: Authentication → Sign In / Providers. Disable everything except
+   Google, including email and anonymous sign-in.
+
+### 3. Environment
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Fill in the two Supabase values. Sentry keys are optional.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Run
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Open http://localhost:3000.
 
-To learn more about Next.js, take a look at the following resources:
+## Scripts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Command | Does |
+|---|---|
+| `npm run dev` | Local dev server |
+| `npm run build` | Production build |
+| `npm run typecheck` | TypeScript, no emit |
+| `npm run lint` | ESLint |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## What exists so far
 
-## Deploy on Vercel
+Phase 0 only: authentication, the route gate, and a placeholder shell.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `/login` — Google sign-in, with a setup hint when environment variables are missing
+- `/auth/callback` — OAuth exchange
+- `/app` — signed-in placeholder, proves the session survives a reload
+- `/api/health` — keep-alive and uptime probe, hit daily by a Vercel cron
