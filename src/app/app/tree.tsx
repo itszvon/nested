@@ -69,6 +69,12 @@ export function WorkspaceTree({
   // Enter commits, which unmounts the input and fires blur too.
   const committing = useRef(false);
 
+  // Bulk selection is separate from the open file: you can tick ten rows
+  // without opening any of them.
+  const [selection, setSelection] = useState<Set<string>>(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const anchorRef = useRef<number | null>(null);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(EXPANDED_KEY);
@@ -161,11 +167,78 @@ export function WorkspaceTree({
     rowRefs.current[clamped]?.focus();
   }
 
+  const DEFAULT_EXT: Record<string, string> = {
+    python: "py",
+    java: "java",
+    javascript: "js",
+    html: "html",
+    css: "css",
+    cpp: "cpp",
+  };
+
+  /**
+   * A code file without an extension cannot be identified, so a rename that
+   * would drop it gets the file's own extension put back.
+   */
+  function withExtension(value: string, node: TreeNode | undefined) {
+    if (!node || node.type !== "file" || node.kind !== "code") return value;
+    if (/\.(py|java|js|html|css|cpp|h|hpp)$/i.test(value)) return value;
+    const ext = DEFAULT_EXT[node.language ?? "python"] ?? "py";
+    return `${value}.${ext}`;
+  }
+
+  function toggleSelected(id: string) {
+    setSelection((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectRange(toIndex: number) {
+    const from = anchorRef.current ?? 0;
+    const low = Math.min(from, toIndex);
+    const high = Math.max(from, toIndex);
+    setSelection(new Set(rows.slice(low, high + 1).map((row) => row.node.id)));
+  }
+
+  async function trashSelection() {
+    setBulkConfirm(false);
+    const ids = [...selection];
+    const selected = new Set(ids);
+
+    // Trashing a folder already trashes its children; sending both would fail
+    // on the second call.
+    const roots = ids
+      .map((id) => workspace.index.get(id))
+      .filter((node): node is TreeNode => Boolean(node))
+      .filter((node) => {
+        let parent = node.parentId;
+        while (parent) {
+          if (selected.has(parent)) return false;
+          parent = workspace.index.get(parent)?.parentId ?? null;
+        }
+        return true;
+      });
+
+    let failed = 0;
+    for (const node of roots) {
+      const result = await trashNode(node.type, node.id);
+      if (!result.ok) failed++;
+    }
+
+    setSelection(new Set());
+    if (selectedId && selected.has(selectedId)) router.replace(pathname, { scroll: false });
+    if (failed > 0) setNotice(`${failed} item${failed === 1 ? "" : "s"} could not be trashed.`);
+    router.refresh();
+  }
+
   async function commitRename() {
     if (!renaming || committing.current) return;
     committing.current = true;
 
-    const next = renaming.value.trim();
+    const next = withExtension(renaming.value.trim(), workspace.index.get(renaming.id));
     const node = workspace.index.get(renaming.id);
     setRenaming(null);
 
@@ -229,10 +302,19 @@ export function WorkspaceTree({
         }
         break;
       case "Enter":
-      case " ":
         event.preventDefault();
         if (row.node.type === "folder") toggle(row.node.id);
         else selectFile(row.node.id);
+        break;
+      case " ":
+        event.preventDefault();
+        toggleSelected(row.node.id);
+        break;
+      case "a":
+        if (event.metaKey || event.ctrlKey) {
+          event.preventDefault();
+          setSelection(new Set(rows.map((entry) => entry.node.id)));
+        }
         break;
       case "F2":
         event.preventDefault();
@@ -288,6 +370,28 @@ export function WorkspaceTree({
         </span>
       </div>
 
+      {selection.size > 0 ? (
+        <div className="flex h-8 items-center gap-3 border-b border-rule bg-[#111614] px-3">
+          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-dim">
+            {selection.size} selected
+          </span>
+          <button
+            type="button"
+            onClick={() => setBulkConfirm(true)}
+            className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent hover:text-ink"
+          >
+            trash
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelection(new Set())}
+            className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-ink"
+          >
+            clear
+          </button>
+        </div>
+      ) : null}
+
       {notice ? (
         <div className="flex items-start gap-2 border-b border-rule bg-accent/10 px-3 py-2 text-[11px] text-ink">
           <span className="flex-1 leading-relaxed">{notice}</span>
@@ -329,8 +433,21 @@ export function WorkspaceTree({
                 aria-selected={isSelected}
                 tabIndex={index === focusIndex ? 0 : -1}
                 onKeyDown={(event) => onKeyDown(event, index)}
-                onClick={() => {
+                onClick={(event) => {
                   setFocusIndex(index);
+
+                  if (event.shiftKey) {
+                    selectRange(index);
+                    return;
+                  }
+                  if (event.metaKey || event.ctrlKey) {
+                    toggleSelected(row.node.id);
+                    anchorRef.current = index;
+                    return;
+                  }
+
+                  anchorRef.current = index;
+                  setSelection(new Set([row.node.id]));
                   if (isFolder) toggle(row.node.id);
                   else selectFile(row.node.id);
                 }}
@@ -340,9 +457,14 @@ export function WorkspaceTree({
                   setMenu({ id: row.node.id, kind: row.node.type, name: row.node.name });
                 }}
                 className={[
-                  "group relative flex h-7 cursor-default items-center gap-1.5 border-b border-rule pr-1.5 text-[13px]",
+                  "group relative flex h-7 cursor-default items-center gap-1.5 border-b border-rule pr-1.5 text-[13px] select-none",
                   "hover:bg-[#111614]",
-                  isSelected ? "bg-panel shadow-[inset_2px_0_0_var(--color-accent)]" : "",
+                  selection.has(row.node.id) ? "bg-[#141a17]" : "",
+                  isSelected
+                    ? "bg-panel shadow-[inset_2px_0_0_var(--color-accent)]"
+                    : selection.has(row.node.id)
+                      ? "shadow-[inset_2px_0_0_#3d4744]"
+                      : "",
                   isFolder ? "text-ink" : "text-ink-dim",
                 ].join(" ")}
                 style={{ paddingLeft: 8 + row.depth * 14 }}
@@ -477,6 +599,16 @@ export function WorkspaceTree({
             setExpanded((current) => new Set(current).add(folderId));
             router.refresh();
           }}
+        />
+      ) : null}
+
+      {bulkConfirm ? (
+        <ConfirmDialog
+          title="Move to trash"
+          body={`${selection.size} item${selection.size === 1 ? "" : "s"} go to the trash. You can restore them for 30 days.`}
+          confirmLabel="Move to trash"
+          onClose={() => setBulkConfirm(false)}
+          onConfirm={trashSelection}
         />
       ) : null}
 

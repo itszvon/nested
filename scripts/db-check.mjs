@@ -179,23 +179,48 @@ async function main() {
 
   console.log("\nfile rules");
   await asUser(A, async () => {
-    await expectError(
-      "code file without a language rejected",
-      "insert into public.files (owner_id, folder_id, name, kind) values ($1,$2,'x.js','code')",
+    const noLanguage = await one(
+      "insert into public.files (owner_id, folder_id, name, kind) values ($1,$2,'x.js','code') returning language",
       [A, gamma],
-      /language_required/,
     );
-    await expectError(
-      "markdown file with a language rejected",
-      "insert into public.files (owner_id, folder_id, name, kind, language) values ($1,$2,'x.md','markdown','python')",
+    ok(
+      "code language is derived when omitted",
+      noLanguage.language === "javascript",
+      String(noLanguage.language),
+    );
+
+    const markdown = await one(
+      "insert into public.files (owner_id, folder_id, name, kind, language) values ($1,$2,'x.md','markdown','python') returning language",
       [A, gamma],
-      /language_not_allowed/,
     );
+    ok("markdown files never carry a language", markdown.language === null);
     await expectError(
       "file over 2 MB rejected",
       "select public.save_file($1,$2,1)",
       [file, "x".repeat(2097153)],
       /file_too_large/,
+    );
+    await expectError(
+      "code file without an extension rejected",
+      "insert into public.files (owner_id, folder_id, name, kind, language) values ($1,$2,'noext','code','python')",
+      [A, gamma],
+      /extension_required/,
+    );
+    await expectError(
+      "unsupported extension rejected",
+      "insert into public.files (owner_id, folder_id, name, kind, language) values ($1,$2,'notes.txt','code','python')",
+      [A, gamma],
+      /invalid_extension/,
+    );
+
+    const derivedLanguage = await one(
+      "insert into public.files (owner_id, folder_id, name, kind, language) values ($1,$2,'thing.css','code','python') returning language",
+      [A, gamma],
+    );
+    ok(
+      "language is taken from the extension, not the request",
+      derivedLanguage.language === "css",
+      String(derivedLanguage.language),
     );
   });
 

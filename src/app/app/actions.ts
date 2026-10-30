@@ -17,6 +17,12 @@ function explain(message: string): string {
   if (/duplicate key|unique/i.test(message)) {
     return "Something with that name already exists here.";
   }
+  if (/extension_required/.test(message)) {
+    return "Code files need an extension, like .py or .js.";
+  }
+  if (/invalid_extension/.test(message)) {
+    return "That extension isn't supported. Use .py, .java, .js, .html, .css, .cpp, .h, or .hpp.";
+  }
   if (/invalid_(file|folder)_name/.test(message)) {
     return "That name isn't allowed. No slashes, and it can't be empty.";
   }
