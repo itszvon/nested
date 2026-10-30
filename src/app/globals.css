@@ -1,26 +1,53 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Ledger tokens.
+ *
+ * Dark only, by product decision. The ground is near-black with a green
+ * undertone; hairline rules carry the structure; one oxblood accent marks
+ * selection, the dirty state, and the primary action. No radii, no shadows.
+ */
+@theme {
+  --color-ground: #0a0c0b;
+  --color-panel: #0e1110;
+  --color-rule: #1e2421;
+  --color-rule-strong: #2c3530;
+  --color-ink: #e9e7e1;
+  --color-ink-dim: #9aa09a;
+  --color-ink-faint: #6a706b;
+  --color-accent: #a8442f;
+  --color-accent-dim: #7a2f20;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --radius-none: 0px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1; /* column alignment is the point */
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-accent-dim);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 1px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+/* Thin, unobtrusive scrollbars that match the rules. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-rule-strong) transparent;
 }
