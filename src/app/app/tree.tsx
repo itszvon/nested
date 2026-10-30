@@ -69,6 +69,30 @@ export function WorkspaceTree({
     }
   }, [expanded, hydrated]);
 
+  // A reload restores ?f=, but the file may sit inside collapsed folders.
+  // Opening its ancestors keeps the selection visible instead of hidden.
+  useEffect(() => {
+    if (!selectedId) return;
+    const node = workspace.index.get(selectedId);
+    if (!node) return;
+
+    const ancestors: string[] = [];
+    let parent = node.parentId;
+    while (parent) {
+      ancestors.push(parent);
+      parent = workspace.index.get(parent)?.parentId ?? null;
+    }
+    if (ancestors.length === 0) return;
+
+    setExpanded((current) => {
+      const missing = ancestors.filter((id) => !current.has(id));
+      if (missing.length === 0) return current;
+      const next = new Set(current);
+      for (const id of missing) next.add(id);
+      return next;
+    });
+  }, [selectedId, workspace]);
+
   const showRootFiles = workspace.looseFiles.length > 0;
   const rows = useMemo(
     () => flattenWorkspace(workspace, expanded, showRootFiles),

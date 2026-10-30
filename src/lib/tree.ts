@@ -29,6 +29,7 @@ export type TreeNode = {
   id: string;
   name: string;
   type: "folder" | "file";
+  parentId: string | null;
   kind?: FileKind;
   language?: string | null;
   revision?: number;
@@ -75,6 +76,7 @@ export function buildWorkspace(folders: FolderRow[], files: FileRow[]): Workspac
       id: row.id,
       name: row.name,
       type: "folder",
+      parentId: row.parent_id,
       children: [],
       // Folders come before files inside a folder, then both alphabetical
       // within their own group. Matches how people read a directory.
@@ -97,6 +99,7 @@ export function buildWorkspace(folders: FolderRow[], files: FileRow[]): Workspac
       id: row.id,
       name: row.name,
       type: "file",
+      parentId: row.folder_id,
       kind: row.kind,
       language: row.language,
       revision: row.revision,
