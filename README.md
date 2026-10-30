@@ -4,8 +4,8 @@ Notes and code, in folders inside folders. Google sign-in, private by default,
 manual saves with per-file version history, a 30-day trash, and nothing ever
 written to the database without a button press.
 
-- [SPEC.md](SPEC.md) — what the app does
-- [PLAN.md](PLAN.md) — how it gets built, phase by phase
+- [docs/SPEC.md](docs/SPEC.md) — what the app does
+- [docs/PLAN.md](docs/PLAN.md) — how it gets built, phase by phase
 
 ## Setup (one time)
 
