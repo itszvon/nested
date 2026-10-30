@@ -20,11 +20,18 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
+    // Browser extensions (dark-mode shims especially) rewrite attributes on
+    // <html> and <body> before React hydrates. Without this, every load throws
+    // a hydration mismatch and the dev overlay reloads in a loop.
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full bg-neutral-950 text-neutral-100">
+      <body
+        suppressHydrationWarning
+        className="min-h-full bg-neutral-950 text-neutral-100"
+      >
         {children}
       </body>
     </html>
