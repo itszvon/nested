@@ -222,6 +222,36 @@ async function main() {
       derivedLanguage.language === "css",
       String(derivedLanguage.language),
     );
+
+    const batch = await client.query(
+      "select extension, language from public.file_extensions where extension = any($1::text[])",
+      [["ts", "tsx", "go", "rs", "sql", "sh"]],
+    );
+    ok("extension table carries the new languages", batch.rowCount === 6, String(batch.rowCount));
+
+    const newLangs = await client.query(
+      `insert into public.files (owner_id, folder_id, name, kind, content) values
+         ($1,$2,'typed.ts','code','const a: number = 1'),
+         ($1,$2,'main.go','code','package main'),
+         ($1,$2,'lib.rs','code','fn main() {}'),
+         ($1,$2,'query.sql','code','select 1'),
+         ($1,$2,'run.sh','code','echo hi')
+       returning language`,
+      [A, gamma],
+    );
+    const seen = newLangs.rows.map((row) => row.language).sort();
+    ok(
+      "each new extension maps to its language",
+      JSON.stringify(seen) === JSON.stringify(["bash", "go", "rust", "sql", "typescript"]),
+      seen.join(","),
+    );
+
+    await expectError(
+      "an unregistered extension is still refused",
+      "insert into public.files (owner_id, folder_id, name, kind) values ($1,$2,'notes.rb','code')",
+      [A, gamma],
+      /invalid_extension/,
+    );
   });
 
   console.log("\nsaving and versions");

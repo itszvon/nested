@@ -8,7 +8,15 @@
  * has no block delimiters at all, so it only gets the collapse.
  */
 
-const BRACE_LANGUAGES = new Set(["javascript", "java", "cpp", "css"]);
+const BRACE_LANGUAGES = new Set([
+  "javascript",
+  "typescript",
+  "java",
+  "cpp",
+  "css",
+  "go",
+  "rust",
+]);
 
 function indentWidth(line: string) {
   const match = line.match(/^[ \t]*/);

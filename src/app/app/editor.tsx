@@ -34,7 +34,7 @@ import {
   linter,
   type Diagnostic,
 } from "@codemirror/lint";
-import { syntaxTree } from "@codemirror/language";
+import { StreamLanguage, syntaxTree } from "@codemirror/language";
 import { heuristicFindings } from "@/lib/checks";
 
 const ledgerTheme = EditorView.theme(
@@ -100,6 +100,21 @@ async function loadLanguage(language: string | null): Promise<Extension[]> {
       return [(await import("@codemirror/lang-java")).java()];
     case "javascript":
       return [(await import("@codemirror/lang-javascript")).javascript()];
+    case "typescript":
+      return [(await import("@codemirror/lang-javascript")).javascript({ typescript: true })];
+    case "go":
+      return [(await import("@codemirror/lang-go")).go()];
+    case "rust":
+      return [(await import("@codemirror/lang-rust")).rust()];
+    case "sql":
+      return [(await import("@codemirror/lang-sql")).sql()];
+    case "bash": {
+      const [{ StreamLanguage }, { shell }] = await Promise.all([
+        import("@codemirror/language"),
+        import("@codemirror/legacy-modes/mode/shell"),
+      ]);
+      return [StreamLanguage.define(shell)];
+    }
     case "html":
       return [(await import("@codemirror/lang-html")).html()];
     case "css":

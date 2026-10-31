@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Nested · notes and code in folders inside folders",
   description:
-    "Notes and code in one tree. Google sign-in, a code editor for five languages, and a saved version behind every save.",
+    "Notes and code in one tree. Google sign-in, a code editor for ten languages, and a saved version behind every save.",
 };
 
 const LIMITS = [
@@ -13,7 +13,7 @@ const LIMITS = [
   ["Files per account", "2,000"],
   ["Folders per account", "500"],
   ["Trash retention", "30 days"],
-  ["Languages", "Python, Java, JavaScript, HTML/CSS, C++"],
+  ["Languages", "Python, JavaScript, TypeScript, Java, Go, Rust, C++, SQL, Bash, HTML/CSS"],
 ];
 
 const FEATURES = [
@@ -25,7 +25,7 @@ const FEATURES = [
   {
     label: "02 / editor",
     title: "Five languages, one editor",
-    body: "Python, Java, JavaScript, HTML/CSS and C++. Colouring, bracket matching, folding, search, several cursors, a format button, and blank-line tidying that keeps the gaps between your functions.",
+    body: "Python, JavaScript, TypeScript, Java, Go, Rust, C++, SQL, Bash and HTML/CSS. Colouring, bracket matching, folding, search, several cursors, a format button, and blank-line tidying that keeps the gaps between your functions.",
   },
   {
     label: "03 / history",
@@ -162,7 +162,7 @@ export default function LandingPage() {
           <h1 className="mt-5 max-w-4xl text-[clamp(2rem,4.4vw,3.4rem)] font-semibold leading-[1.07] tracking-[-0.03em] text-ink">
             Notes, Markdown and code in one tree:
             <br />
-            folders inside folders, five languages,
+            folders inside folders, ten languages,
             <br />
             a saved version behind every save.
           </h1>
@@ -224,8 +224,9 @@ export default function LandingPage() {
                 allow, and they are on this page before anyone signs in.
               </p>
               <p className="mt-4 max-w-md text-[13px] leading-relaxed text-ink-faint">
-                Java and C++ are coloured and checked. They do not run here: no browser runtime
-                exists for either, and the alternative is sending your code to a server.
+                JavaScript and Python run in the browser. Everything else is edited,
+                coloured and checked but not executed, because that would mean sending your
+                code to a server.
               </p>
             </div>
 

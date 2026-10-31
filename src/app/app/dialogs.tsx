@@ -16,21 +16,39 @@ import {
 
 const LANGUAGES = [
   { id: "python", label: "Python", ext: "py" },
-  { id: "java", label: "Java", ext: "java" },
   { id: "javascript", label: "JavaScript", ext: "js" },
-  { id: "htmlcss", label: "HTML/CSS", ext: "html" },
+  { id: "typescript", label: "TypeScript", ext: "ts" },
+  { id: "java", label: "Java", ext: "java" },
+  { id: "go", label: "Go", ext: "go" },
+  { id: "rust", label: "Rust", ext: "rs" },
   { id: "cpp", label: "C++", ext: "cpp" },
+  { id: "sql", label: "SQL", ext: "sql" },
+  { id: "bash", label: "Bash", ext: "sh" },
+  { id: "htmlcss", label: "HTML/CSS", ext: "html" },
 ] as const;
 
 const EXT_LANGUAGE: Record<string, string> = {
   py: "python",
   java: "java",
   js: "javascript",
+  mjs: "javascript",
+  cjs: "javascript",
+  ts: "typescript",
+  tsx: "typescript",
   html: "html",
+  htm: "html",
   css: "css",
   cpp: "cpp",
+  cxx: "cpp",
+  cc: "cpp",
   h: "cpp",
   hpp: "cpp",
+  go: "go",
+  rs: "rust",
+  sql: "sql",
+  sh: "bash",
+  bash: "bash",
+  zsh: "bash",
 };
 
 export function Modal({

@@ -112,6 +112,20 @@ type ConsoleLine = { kind: "out" | "ask" | "in" | "err"; text: string };
 
 const SUPPORTED = new Set(["javascript", "python", "html", "css"]);
 
+const LANGUAGE_LABEL: Record<string, string> = {
+  java: "Java",
+  cpp: "C++",
+  typescript: "TypeScript",
+  go: "Go",
+  rust: "Rust",
+  sql: "SQL",
+  bash: "Bash",
+};
+
+function labelOf(language: string | null) {
+  return language ? LANGUAGE_LABEL[language] ?? language : "This file type";
+}
+
 export function RunnerPanel({
   language,
   code,
@@ -389,15 +403,11 @@ export function RunnerPanel({
 
       {!supported ? (
         <div className="px-4 py-4 text-[12px] leading-relaxed text-ink-dim">
-          <p className="text-ink">
-            {language === "java" || language === "cpp"
-              ? `${language === "java" ? "Java" : "C++"} cannot run in the browser.`
-              : "This file type does not run."}
-          </p>
+          <p className="text-ink">{labelOf(language)} does not run here.</p>
           <p className="mt-1 text-ink-faint">
-            There is no browser runtime for {language === "java" ? "a JVM" : "a C++ toolchain"}, and
-            running it would mean sending your code to an outside service. That is not something
-            this app does.
+            JavaScript and Python run in the browser; HTML and CSS get a preview. Every other
+            language is edited, coloured and checked. Running them would mean sending your code
+            to an outside service.
           </p>
         </div>
       ) : preview ? (
