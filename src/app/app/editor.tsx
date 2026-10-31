@@ -21,6 +21,7 @@ import {
   completionKeymap,
 } from "@codemirror/autocomplete";
 import {
+  HighlightStyle,
   bracketMatching,
   foldGutter,
   foldKeymap,
@@ -28,6 +29,7 @@ import {
   syntaxHighlighting,
 } from "@codemirror/language";
 import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
+import { tags } from "@lezer/highlight";
 import {
   diagnosticCount,
   lintGutter,
@@ -37,6 +39,23 @@ import {
 import { StreamLanguage, syntaxTree } from "@codemirror/language";
 import { heuristicFindings } from "@/lib/checks";
 import type { EditorSettings } from "@/lib/settings";
+
+// One-dark paints plain strings cyan once the Python grammar tags them as
+// special(string), which reads as "not a string" next to f-strings. Every
+// string-like tag is pinned to the same green, whichever grammar is loaded.
+const greenStrings = HighlightStyle.define([
+  {
+    tag: [
+      tags.string,
+      tags.special(tags.string),
+      tags.character,
+      tags.docString,
+      tags.processingInstruction,
+      tags.inserted,
+    ],
+    color: "#98c379",
+  },
+]);
 
 function makeTheme(fontSize: number) {
   return EditorView.theme(
@@ -211,6 +230,7 @@ export function CodeEditor({
         highlightActiveLine(),
         highlightSelectionMatches(),
         syntaxHighlighting(oneDarkHighlightStyle),
+        syntaxHighlighting(greenStrings),
         makeTheme(settings.fontSize),
         EditorState.tabSize.of(settings.tabSize),
         keymap.of([
