@@ -58,30 +58,36 @@ export default async function AppPage({
         </Link>
         <SidebarToggle />
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-4">
           <Link
             href="/settings"
-            className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint hover:text-ink"
+            aria-label="Account settings"
+            title="Account settings"
+            className="group flex h-7 items-center gap-2"
           >
-            settings
+            {profile.data?.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.data.avatar}
+                alt=""
+                className="h-6 w-6 border border-rule object-cover"
+              />
+            ) : (
+              <span className="flex h-6 w-6 items-center justify-center border border-rule font-mono text-[9px] uppercase text-ink-faint group-hover:border-rule-strong">
+                {(profile.data?.display_name ?? user.email ?? "?").slice(0, 1)}
+              </span>
+            )}
+            <span className="hidden max-w-[160px] truncate font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint group-hover:text-ink sm:inline">
+              {profile.data?.display_name ?? user.email}
+            </span>
           </Link>
 
-          <span className="hidden max-w-[200px] truncate font-mono text-[10px] text-ink-faint sm:inline">
-            {profile.data?.display_name ?? user.email}
-          </span>
+          <span aria-hidden="true" className="h-4 w-px bg-rule" />
 
-          {profile.data?.avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={profile.data.avatar}
-              alt=""
-              className="h-6 w-6 border border-rule object-cover"
-            />
-          ) : null}
           <form action={signOut}>
             <button
               type="submit"
-              className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-dim hover:text-ink"
+              className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint hover:text-ink"
             >
               Sign out
             </button>

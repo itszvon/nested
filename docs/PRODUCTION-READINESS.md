@@ -9,7 +9,7 @@ Reviewer: the build agent. Not an independent auditor, not a penetration test, n
 
 **CONDITIONALLY READY. Deployed and serving, with two P1 operational gaps that no code change closes.**
 
-The application is deployed at https://nested-psi.vercel.app and the smoke test below passed against it. Two P1 items remain: no backups, no alerting. Until those exist, anyone using the site is one bad migration or one dropped table away from losing their data with nobody notified, so READY is not available.
+The application is deployed at https://nestedforyou.vercel.app and the smoke test below passed against it. Two P1 items remain: no backups, no alerting. Until those exist, anyone using the site is one bad migration or one dropped table away from losing their data with nobody notified, so READY is not available.
 
 Updated 31 October 2026 after the first production deployment.
 
@@ -130,7 +130,7 @@ Not a penetration test, not a legal review, not an accessibility audit, not a re
 
 ## Deployment, 31 October 2026
 
-Production: https://nested-psi.vercel.app
+Production: https://nestedforyou.vercel.app
 Source: https://github.com/itszvon/nested, deployed from `master` by Vercel project `nested`.
 Build: deployment dpl_F7uJmimcdBSu3b5b26AZk2KPTi14, state READY, region iad1.
 

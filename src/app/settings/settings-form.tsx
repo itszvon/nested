@@ -300,36 +300,37 @@ export function SettingsForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={label} htmlFor="username">
+            <label className={label} htmlFor={usernamePanel ? "username" : undefined}>
               Username
             </label>
-            <input
-              id="username"
-              value={username}
-              onChange={(event) => {
-                setUsername(event.target.value);
-                setUsernameError(null);
-                setUsernameNotice(null);
-              }}
-              autoComplete="off"
-              spellCheck={false}
-              disabled={usernamePanel && usernameStage === "code"}
-              className={`${field} font-mono disabled:opacity-60`}
-            />
 
             {usernamePanel ? (
-              <div className="mt-2 border border-rule p-3">
+              <div className="space-y-2">
                 {usernameStage === "edit" ? (
                   <>
+                    <input
+                      id="username"
+                      value={username}
+                      onChange={(event) => {
+                        setUsername(event.target.value);
+                        setUsernameError(null);
+                        setUsernameNotice(null);
+                      }}
+                      placeholder={profile.username}
+                      autoComplete="off"
+                      spellCheck={false}
+                      autoFocus
+                      className={`${field} font-mono`}
+                    />
                     <p className="text-[11px] leading-relaxed text-ink-faint">
                       A six-digit code goes to {profile.email}. The username changes only after
                       you enter that code here.
                     </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => void sendUsernameConfirmation()}
-                        disabled={usernameBusy || username.trim() === profile.username}
+                        disabled={usernameBusy || username.trim().length === 0}
                         className={primary}
                       >
                         {usernameBusy ? "Sending" : "Send code"}
@@ -351,7 +352,7 @@ export function SettingsForm({
                 ) : (
                   <>
                     <p className="text-[11px] leading-relaxed text-ink-faint">
-                      Enter the code sent to {profile.email}.
+                      Enter the code sent to {profile.email} to become {username}.
                     </p>
                     <input
                       value={usernameCode}
@@ -398,20 +399,25 @@ export function SettingsForm({
                 )}
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setUsernamePanel(true);
-                  setUsernameStage("edit");
-                  setUsernameCode("");
-                  setUsernameError(null);
-                  setUsernameNotice(null);
-                }}
-                disabled={username.trim().toLowerCase() === profile.username}
-                className={`${secondary} mt-2`}
-              >
-                Change username
-              </button>
+              <>
+                <p className="h-9 truncate border border-rule bg-panel/50 px-3 py-2 font-mono text-[12px] text-ink-dim">
+                  {profile.username}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsernamePanel(true);
+                    setUsernameStage("edit");
+                    setUsernameCode("");
+                    setUsernameError(null);
+                    setUsernameNotice(null);
+                    setUsername("");
+                  }}
+                  className={`${secondary} mt-2`}
+                >
+                  Change username
+                </button>
+              </>
             )}
 
             {usernameError ? <p className="mt-2 text-[11px] text-red-300">{usernameError}</p> : null}

@@ -86,7 +86,7 @@ account across devices.
 
 ## Live
 
-Production: https://nested-psi.vercel.app
+Production: https://nestedforyou.vercel.app
 
 Deployed from `itszvon/nested` on Vercel, project `nested`. Every push to `master`
 builds and deploys. Supabase auth is configured with the production callback.
