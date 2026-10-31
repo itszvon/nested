@@ -15,11 +15,13 @@ export async function getWorkspaceRows(): Promise<{
   const [folders, files] = await Promise.all([
     supabase
       .from("folders")
-      .select("id, parent_id, name, sort_order")
+      .select("id, parent_id, name, sort_order, pinned_at")
       .is("deleted_at", null),
     supabase
       .from("files")
-      .select("id, folder_id, project_id, name, kind, language, revision, byte_size, sort_order, updated_at")
+      .select(
+        "id, folder_id, project_id, name, kind, language, revision, byte_size, sort_order, updated_at, pinned_at",
+      )
       .is("deleted_at", null),
   ]);
 

@@ -161,6 +161,7 @@ export async function saveFile(
   fileId: string,
   content: string,
   expectedRevision: number,
+  label?: string,
 ): Promise<SaveResult> {
   await requireUser();
   const supabase = await createClient();
@@ -169,6 +170,7 @@ export async function saveFile(
     p_file_id: fileId,
     p_content: content,
     p_expected_revision: expectedRevision,
+    p_label: label?.trim() ? label.trim().slice(0, 200) : null,
   });
 
   if (error) return { ok: false, error: explain(error.message) };
@@ -846,6 +848,46 @@ export async function deleteAccount(): Promise<ActionResult> {
   if (error) return { ok: false, error: explain(error.message) };
 
   await supabase.auth.signOut();
+  return { ok: true };
+}
+
+/** Copies a file or a folder subtree next to the original. */
+export async function duplicateNode(
+  kind: "folder" | "file",
+  id: string,
+): Promise<ActionResult> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("duplicate_node", {
+    p_kind: kind,
+    p_id: id,
+  });
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
+  return { ok: true, id: (data as string | null) ?? undefined };
+}
+
+/** Pins or unpins a row. The timestamp is what orders the pinned list. */
+export async function setPinned(
+  kind: "folder" | "file",
+  id: string,
+  pinned: boolean,
+): Promise<ActionResult> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const table = kind === "folder" ? "folders" : "files";
+  const { error } = await supabase
+    .from(table)
+    .update({ pinned_at: pinned ? new Date().toISOString() : null })
+    .eq("id", id);
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
   return { ok: true };
 }
 

@@ -59,6 +59,8 @@ export function FilePane({
   const [formatting, setFormatting] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Optional note stored on the version created by the next save.
+  const [note, setNote] = useState("");
 
   // "Version history" arrives as ?versions=1 from the tree menu. Consume it and
   // clean the URL, so the same menu item works again after closing.
@@ -135,7 +137,7 @@ export function FilePane({
     setSaving(true);
     setError(null);
 
-    const result = await saveFile(file.id, value, revision);
+    const result = await saveFile(file.id, value, revision, note);
     setSaving(false);
 
     if (!result.ok) {
@@ -144,6 +146,7 @@ export function FilePane({
       return;
     }
 
+    setNote("");
     setConflict(false);
     setSavedText(value);
     setRevision(result.revision);
@@ -266,7 +269,7 @@ export function FilePane({
       return;
     }
     setSaving(true);
-    const result = await saveFile(file.id, textRef.current, snapshot.revision);
+    const result = await saveFile(file.id, textRef.current, snapshot.revision, note);
     setSaving(false);
 
     if (!result.ok) {
@@ -459,6 +462,21 @@ export function FilePane({
           >
             versions
           </button>
+
+          <input
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void save();
+              }
+            }}
+            placeholder="note for this save"
+            aria-label="Note for this save"
+            maxLength={200}
+            className="ml-1 hidden h-7 w-[130px] border border-rule bg-ground px-2 font-mono text-[10px] text-ink outline-none placeholder:text-ink-faint focus:border-accent lg:block"
+          />
 
           <button
             type="button"

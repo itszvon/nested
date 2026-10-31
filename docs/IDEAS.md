@@ -68,12 +68,35 @@ Ordered by value for cost. None of these are file types.
 | 9 | **Command palette** | `Ctrl/Cmd+K`: jump to a file, create one, switch project, open settings. The tree stops being the only navigation. | Medium |
 | 10 | **Focus mode** | Hide the sidebar and the header arrows, widen the editor. One keyboard shortcut, remembered per account. | Low |
 
+**Shipped:** 3 (duplicate), 4 (pinned files and folders), 7 (version notes),
+8 (project zip export).
+
 Two more that are close to free and worth folding into whichever ships first:
 
 - **Language badge in the file header** — `languages.ts` already knows whether a
   language runs, previews, checks or needs a tool; showing it saves a click.
 - **Shortcut sheet** — press `?` for the list. The app already has a lot of
   undiscoverable keyboard behaviour (F2, space, arrow keys, Ctrl+Enter).
+
+## For programmers
+
+Ideas chosen because the app is used to think in code, not only to store it.
+
+| # | Idea | Why a programmer wants it | Cost |
+|---|---|---|---|
+| 1 | **Version diff** | Two versions side by side, line added/removed. Restoring without seeing the difference is guesswork. | Medium–high |
+| 2 | **Runner fixtures** | Save stdin, arguments and expected output per file, next to the code. Turns the runner from a demo into a test bench. | Medium |
+| 3 | **Project-wide find and replace** | Search every file for a string or regex, with a result list and replace-all. The tree has no content search at all. | High |
+| 4 | **Snippet library** | A top-level `snippets` project whose files are insertable from the editor. Boilerplate without retyping. | Low–medium |
+| 5 | **Import a gist or raw URL** | Paste a link, get a file with the right language. Fastest way to bring outside code in. | Medium |
+| 6 | **In-editor todo scan** | Collect `TODO`, `FIXME` and `XXX` across the open project into one list. Cheap and immediately useful. | Low |
+| 7 | **Line links** | Copy a link to `file:line` that opens the file scrolled and highlighted. Useful when pasting notes into issues. | Low–medium |
+| 8 | **Duplicate with a name** | Today duplicates always become "(copy)". Asking for the name makes "v2 before refactor" trivial. | Very low |
+| 9 | **File stats** | Lines, characters, indent style, longest line, trailing whitespace, shown on demand. A lint-lite pass with no toolchain. | Low |
+| 10 | **Run selection** | Execute only the highlighted lines in the runner. Experimentation without deleting surrounding code. | Medium |
+
+None of these need a second service: everything runs in the browser or in
+Postgres, which is the constraint that keeps the free tier viable.
 
 ## Explicitly not doing
 

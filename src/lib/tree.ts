@@ -12,6 +12,7 @@ export type FolderRow = {
   parent_id: string | null;
   name: string;
   sort_order: number;
+  pinned_at?: string | null;
 };
 
 export type FileRow = {
@@ -25,6 +26,7 @@ export type FileRow = {
   byte_size: number;
   sort_order: number;
   updated_at: string;
+  pinned_at?: string | null;
 };
 
 export type TreeNode = {

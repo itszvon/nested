@@ -10,7 +10,14 @@ import {
   type FolderRow,
   type TreeNode,
 } from "@/lib/tree";
-import { moveNode, renameNode, reorderNodes, trashNode } from "./actions";
+import {
+  duplicateNode,
+  moveNode,
+  renameNode,
+  reorderNodes,
+  setPinned,
+  trashNode,
+} from "./actions";
 import { TypeIcon } from "./icons";
 import { languageLabel as languageLabelOf } from "@/lib/languages";
 import { clearBuffers } from "@/lib/buffers";
@@ -64,6 +71,36 @@ export function WorkspaceTree({
   const pathname = usePathname();
 
   const workspace = useMemo(() => buildWorkspace(folders, files), [folders, files]);
+
+  // Pinned rows keep their own list: pinning must not reorder the tree.
+  const pinned = useMemo(() => {
+    const items: Array<{
+      id: string;
+      name: string;
+      type: "folder" | "file";
+      kind?: "markdown" | "code";
+      at: string;
+    }> = [];
+    for (const folder of folders) {
+      if (folder.pinned_at) {
+        items.push({ id: folder.id, name: folder.name, type: "folder", at: folder.pinned_at });
+      }
+    }
+    for (const file of files) {
+      if (file.pinned_at) {
+        items.push({
+          id: file.id,
+          name: file.name,
+          type: "file",
+          kind: file.kind,
+          at: file.pinned_at,
+        });
+      }
+    }
+    return items.sort((a, b) => b.at.localeCompare(a.at));
+  }, [folders, files]);
+
+  const pinnedIds = useMemo(() => new Set(pinned.map((item) => item.id)), [pinned]);
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [hydrated, setHydrated] = useState(false);
@@ -176,6 +213,50 @@ export function WorkspaceTree({
 
   function selectFile(id: string) {
     router.replace(`${pathname}?f=${id}`, { scroll: false });
+  }
+
+  /** Pinned rows may sit inside collapsed folders; open the path to them. */
+  function revealNode(id: string) {
+    const node = workspace.index.get(id);
+    if (!node) return;
+
+    const ancestors: string[] = [];
+    let parent = node.parentId;
+    while (parent) {
+      ancestors.push(parent);
+      parent = workspace.index.get(parent)?.parentId ?? null;
+    }
+
+    setExpanded((current) => {
+      const next = new Set(current);
+      for (const ancestor of ancestors) next.add(ancestor);
+      if (node.type === "folder") next.add(node.id);
+      return next;
+    });
+
+    if (node.type === "file") selectFile(node.id);
+  }
+
+  async function handleDuplicate(node: TreeNode) {
+    const result = await duplicateNode(node.type, node.id);
+    if (!result.ok) {
+      setNotice(result.error);
+      return;
+    }
+
+    if (node.type === "folder") {
+      setExpanded((current) => new Set(current).add(node.id));
+    } else if (node.parentId) {
+      setExpanded((current) => new Set(current).add(node.parentId!));
+    }
+
+    router.refresh();
+  }
+
+  async function togglePin(node: TreeNode) {
+    const result = await setPinned(node.type, node.id, !pinnedIds.has(node.id));
+    if (!result.ok) setNotice(result.error);
+    router.refresh();
   }
 
   function focusRow(index: number) {
@@ -461,6 +542,33 @@ export function WorkspaceTree({
         </button>
       </div>
 
+      {pinned.length > 0 ? (
+        <div className="border-b border-rule px-2 py-1.5">
+          <p className="px-1 pb-1 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-faint">
+            pinned
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {pinned.map((item) => (
+              <button
+                key={`${item.type}:${item.id}`}
+                type="button"
+                onClick={() => revealNode(item.id)}
+                title={item.type === "folder" ? "Pinned folder" : "Pinned file"}
+                className="flex max-w-full items-center gap-1.5 border border-rule px-2 py-1 text-[11px] text-ink-dim hover:border-rule-strong hover:text-ink"
+              >
+                <TypeIcon
+                  kind={
+                    item.type === "folder" ? "folder" : item.kind === "code" ? "code" : "text"
+                  }
+                  className="text-ink-faint"
+                />
+                <span className="truncate">{item.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {selectMode ? (
         <div className="flex h-8 items-center gap-3 border-b border-rule bg-[#111614] px-3">
           <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-dim">
@@ -698,14 +806,22 @@ export function WorkspaceTree({
                       </>
                     ) : null}
                     {isFolder && row.node.parentId === null ? (
-                      <MenuItem
-                        onClick={() => {
-                          setMenu(null);
-                          setProjectHistory({ id: row.node.id, name: row.node.name });
-                        }}
-                      >
-                        Project history
-                      </MenuItem>
+                      <>
+                        <MenuItem
+                          onClick={() => {
+                            setMenu(null);
+                            setProjectHistory({ id: row.node.id, name: row.node.name });
+                          }}
+                        >
+                          Project history
+                        </MenuItem>
+                        <a
+                          href={`/api/projects/${row.node.id}/export`}
+                          className="block w-full px-3 py-1.5 text-left text-[12px] text-ink-dim hover:bg-[#161b18] hover:text-ink"
+                        >
+                          Export as zip
+                        </a>
+                      </>
                     ) : null}
                     {!isFolder ? (
                       <MenuItem
@@ -719,6 +835,22 @@ export function WorkspaceTree({
                         Version history
                       </MenuItem>
                     ) : null}
+                    <MenuItem
+                      onClick={() => {
+                        setMenu(null);
+                        void handleDuplicate(row.node);
+                      }}
+                    >
+                      Duplicate
+                    </MenuItem>
+                    <MenuItem
+                      onClick={() => {
+                        setMenu(null);
+                        void togglePin(row.node);
+                      }}
+                    >
+                      {pinnedIds.has(row.node.id) ? "Unpin" : "Pin"}
+                    </MenuItem>
                     <MenuItem
                       onClick={() => {
                         setMenu(null);

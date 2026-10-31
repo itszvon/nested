@@ -130,9 +130,11 @@ not exist is worse than no runbook.
 - `/login` — Google sign-in, with a setup hint when environment variables are missing
 - `/auth/callback` — OAuth exchange and email-link verification
 - `/app` — the workspace: resizable sidebar, unlimited-depth tree, drag to move,
-  multi-select delete with confirmation, trash, code editor with ten languages and
-  per-language formatting, file and project version history, a browser runner for
-  JavaScript, TypeScript, Python and SQL, HTML/CSS preview
+  multi-select delete with confirmation, duplicate, pinned files and folders,
+  trash, code editor with twelve languages and per-language formatting, file and
+  project version history with save notes, a browser runner for JavaScript,
+  TypeScript, Python and SQL, HTML/CSS preview, JSON/YAML checking, and project
+  export as a zip
 - `/settings` — picture and display name (any time), username and email (confirmed
   by six-digit code), editor preferences, storage usage, JSON export, account deletion
 - `/api/health` — keep-alive and uptime probe, hit daily by a Vercel cron

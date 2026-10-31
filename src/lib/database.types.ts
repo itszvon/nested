@@ -67,6 +67,7 @@ export type Database = {
           language: Database["public"]["Enums"]["file_language"] | null
           name: string
           owner_id: string
+          pinned_at: string | null
           project_id: string | null
           revision: number
           sort_order: number
@@ -85,6 +86,7 @@ export type Database = {
           language?: Database["public"]["Enums"]["file_language"] | null
           name: string
           owner_id: string
+          pinned_at?: string | null
           project_id?: string | null
           revision?: number
           sort_order?: number
@@ -103,6 +105,7 @@ export type Database = {
           language?: Database["public"]["Enums"]["file_language"] | null
           name?: string
           owner_id?: string
+          pinned_at?: string | null
           project_id?: string | null
           revision?: number
           sort_order?: number
@@ -141,6 +144,7 @@ export type Database = {
           name: string
           owner_id: string
           parent_id: string | null
+          pinned_at: string | null
           sort_order: number
           trash_root_id: string | null
           updated_at: string
@@ -152,6 +156,7 @@ export type Database = {
           name: string
           owner_id: string
           parent_id?: string | null
+          pinned_at?: string | null
           sort_order?: number
           trash_root_id?: string | null
           updated_at?: string
@@ -163,6 +168,7 @@ export type Database = {
           name?: string
           owner_id?: string
           parent_id?: string | null
+          pinned_at?: string | null
           sort_order?: number
           trash_root_id?: string | null
           updated_at?: string
@@ -381,11 +387,13 @@ export type Database = {
       }
       restore_project: { Args: { p_snapshot_id: string }; Returns: number }
       restore_version: { Args: { p_version_id: string }; Returns: string }
+      duplicate_node: { Args: { p_id: string; p_kind: string }; Returns: string }
       save_file: {
         Args: {
           p_content: string
           p_expected_revision: number
           p_file_id: string
+          p_label?: string
         }
         Returns: {
           revision: number
