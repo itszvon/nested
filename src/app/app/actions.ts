@@ -632,8 +632,8 @@ export async function confirmUsernameChange(code: string): Promise<ActionResult>
   }
 
   const token = code.replace(/\s+/g, "");
-  if (!/^\d{6,8}$/.test(token)) {
-    return { ok: false, error: "That code does not look right. Use the digits from the email." };
+  if (!/^\d{6}$/.test(token)) {
+    return { ok: false, error: "Codes are six digits. Use the digits from the email." };
   }
 
   const supabase = await createClient();
@@ -741,8 +741,8 @@ export async function confirmEmailChange(code: string): Promise<ActionResult> {
   const user = await requireUser();
   const token = code.replace(/\s+/g, "");
 
-  if (!/^\d{6,8}$/.test(token)) {
-    return { ok: false, error: "That code does not look right. Use the digits from the email." };
+  if (!/^\d{6}$/.test(token)) {
+    return { ok: false, error: "Codes are six digits. Use the digits from the email." };
   }
 
   const supabase = await createClient();

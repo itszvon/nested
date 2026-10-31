@@ -356,7 +356,7 @@ export function SettingsForm({
                     <input
                       value={usernameCode}
                       onChange={(event) => {
-                        setUsernameCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 8));
+                        setUsernameCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6));
                         setUsernameError(null);
                       }}
                       inputMode="numeric"
@@ -472,7 +472,7 @@ export function SettingsForm({
                     <input
                       value={emailCode}
                       onChange={(event) => {
-                        setEmailCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 8));
+                        setEmailCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6));
                         setEmailError(null);
                       }}
                       inputMode="numeric"
