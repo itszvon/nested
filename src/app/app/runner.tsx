@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * Runs a file, locally, inside a sandboxed iframe.
@@ -68,6 +68,22 @@ function pythonDocument(code: string, nonce: string) {
     var pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/" });
     pyodide.setStdout({ batched: function (text) { send("log", String(text).replace(/\\n$/, "")); } });
     pyodide.setStderr({ batched: function (text) { send("log", String(text).replace(/\\n$/, "")); } });
+
+    // Pyodide has no stdin, so input() would raise OSError 29. Route it to a
+    // browser prompt instead, and print the question first so it is not lost.
+    pyodide.globals.set("js_input", function (question) {
+      var answer = window.prompt(question ? String(question) : "input", "");
+      return answer === null ? "" : String(answer);
+    });
+    await pyodide.runPythonAsync([
+      "import builtins",
+      "def _nested_input(question=''):",
+      "    if question:",
+      "        print(question)",
+      "    return str(js_input(question))",
+      "builtins.input = _nested_input",
+    ].join("\\n"));
+
     await pyodide.runPythonAsync(${ESC(code)});
     send("done");
   } catch (error) {
@@ -105,9 +121,24 @@ export function RunnerPanel({
   const nonce = useMemo(() => Math.random().toString(36).slice(2), [runId]);
   const [lines, setLines] = useState<string[]>([]);
   const [status, setStatus] = useState<"running" | "done" | "timeout">("running");
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const supported = language !== null && SUPPORTED.has(language);
   const preview = language === "html" || language === "css";
+
+  /**
+   * Idle timeout, not wall-clock: interactive scripts that keep producing
+   * output are never cut off, and a runaway loop still stops.
+   */
+  const bumpIdle = useCallback(() => {
+    if (!supported) return;
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    const limit = language === "python" ? 120000 : 15000;
+    idleTimer.current = setTimeout(() => {
+      setStatus((current) => (current === "running" ? "timeout" : current));
+      setLines((current) => [...current, `No output for ${limit / 1000}s, stopped.`]);
+    }, limit);
+  }, [language, supported]);
 
   useEffect(() => {
     setLines([]);
@@ -121,6 +152,7 @@ export function RunnerPanel({
 
       if (data.type === "log" || data.type === "status") {
         setLines((current) => [...current, String(data.text)]);
+        bumpIdle();
       } else if (data.type === "done") {
         setStatus("done");
       } else if (data.type === "error") {
@@ -130,17 +162,14 @@ export function RunnerPanel({
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [nonce]);
+  }, [nonce, bumpIdle]);
 
   useEffect(() => {
-    if (!supported) return;
-    const limit = language === "python" ? 45000 : 10000;
-    const timer = setTimeout(() => {
-      setStatus((current) => (current === "running" ? "timeout" : current));
-      setLines((current) => [...current, `Stopped after ${limit / 1000}s.`]);
-    }, limit);
-    return () => clearTimeout(timer);
-  }, [runId, language, supported]);
+    bumpIdle();
+    return () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+    };
+  }, [bumpIdle, runId]);
 
   const document_ = supported
     ? language === "javascript"
@@ -193,7 +222,7 @@ export function RunnerPanel({
         <iframe
           key={runId}
           title="Preview"
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-modals"
           referrerPolicy="no-referrer"
           srcDoc={document_ ?? ""}
           className="h-full w-full flex-1 bg-white"
@@ -206,7 +235,7 @@ export function RunnerPanel({
           <iframe
             key={runId}
             title="Runner"
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-modals"
             referrerPolicy="no-referrer"
             srcDoc={document_ ?? ""}
             className="hidden h-0 w-0"
