@@ -42,6 +42,31 @@ function readLine(question) {
   return text.replace(/\n$/, "");
 }
 
+// Pyodide ships no GUI toolkit and no terminal. Detecting these before the
+// runtime download turns a wall of traceback into one sentence.
+var UNSUPPORTED_PY = {
+  tkinter: "tkinter needs a windowing system, and a browser worker has none.",
+  turtle: "turtle draws into a Tk window, which cannot open here.",
+  curses: "curses needs a real terminal.",
+  idlelib: "idlelib is the IDLE editor itself."
+};
+
+function unsupportedImport(code) {
+  var re = /^[ \t]*(?:import[ \t]+([A-Za-z_][A-Za-z0-9_]*)|from[ \t]+([A-Za-z_][A-Za-z0-9_]*))/gm;
+  var match;
+  while ((match = re.exec(code))) {
+    var name = match[1] || match[2];
+    if (Object.prototype.hasOwnProperty.call(UNSUPPORTED_PY, name)) return name;
+  }
+  return null;
+}
+
+function unsupportedMessage(name) {
+  return name + " is not available in the browser runner. " +
+    UNSUPPORTED_PY[name] +
+    " The file is still saved; run it with Python on your machine instead.";
+}
+
 function lockDown() {
   var block = function () {
     throw new Error("network and storage are disabled in the runner");
@@ -78,6 +103,13 @@ function installConsole() {
 }
 
 async function runPython(code) {
+  var blocked = unsupportedImport(code);
+  if (blocked) {
+    send("error", unsupportedMessage(blocked));
+    send("done", "");
+    return;
+  }
+
   if (!pyReady) {
     send("status", "loading python runtime (first run downloads about 10 MB)...");
     importScripts("https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js");
@@ -167,7 +199,12 @@ self.onmessage = async function (event) {
       runJavaScript(message.code);
     }
   } catch (error) {
-    send("error", (error && error.message) || String(error));
+    var text = (error && error.message) || String(error);
+    var missing = /ModuleNotFoundError: No module named '([^']+)'/.exec(text);
+    if (missing && Object.prototype.hasOwnProperty.call(UNSUPPORTED_PY, missing[1])) {
+      text = unsupportedMessage(missing[1]);
+    }
+    send("error", text);
   }
 };
 `;

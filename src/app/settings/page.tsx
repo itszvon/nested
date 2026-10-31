@@ -13,7 +13,11 @@ export const metadata: Metadata = {
 
 export const instant = false;
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ confirm?: string }>;
+}) {
   await connection();
 
   if (!isSupabaseConfigured()) redirect("/login");
@@ -33,6 +37,24 @@ export default async function SettingsPage() {
   ]);
 
   const row = profile.data;
+
+  // Arriving from a confirmation email: show the change that is waiting, not
+  // an auto-applied one. The click in the app is the last step.
+  const params = await searchParams;
+  let pendingUsername: { id: string; username: string } | null = null;
+
+  if (params.confirm) {
+    const { data } = await supabase
+      .from("profile_change_requests")
+      .select("id, payload, expires_at")
+      .eq("id", params.confirm)
+      .maybeSingle();
+
+    const username = (data?.payload as { username?: string } | null)?.username;
+    if (data && username && new Date(data.expires_at).getTime() > Date.now()) {
+      pendingUsername = { id: data.id, username };
+    }
+  }
 
   return (
     <div className="min-h-dvh">
@@ -57,6 +79,7 @@ export default async function SettingsPage() {
             avatar: row?.avatar ?? null,
           }}
           settings={readSettings(row?.settings)}
+          pendingUsername={pendingUsername}
           usage={{
             storageBytes: Number(row?.storage_bytes ?? 0),
             files: files.count ?? 0,

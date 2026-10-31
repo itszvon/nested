@@ -528,70 +528,150 @@ export async function updateProfile(input: {
   return { ok: true };
 }
 
-/**
- * Changing the username is treated as an identity change: it needs the
- * account's email typed back as confirmation. The username itself is checked
- * here because the database constraint only guarantees uniqueness.
- */
-export async function updateUsername(input: {
-  username: string;
-  confirmEmail: string;
-}): Promise<ActionResult> {
-  const user = await requireUser();
-  const username = input.username.trim().replace(/^@+/, "").toLowerCase();
+const USERNAME_PATTERN = /^[a-z0-9_]{3,32}$/;
 
-  if (!/^[a-z0-9_]{3,32}$/.test(username)) {
+/**
+ * Both identity changes go through email. The provider's own wording is
+ * translated here, because "email_provider_disabled" means nothing to a user
+ * and it was previously swallowed by a generic message.
+ */
+function mailFailure(message: string): string {
+  if (/email_provider_disabled|email logins are disabled/i.test(message)) {
+    return "Email confirmation is switched off for this project, so no link could be sent.";
+  }
+  if (/rate|limit|too many/i.test(message)) {
+    return "Too many confirmation emails were sent recently. Try again in a few minutes.";
+  }
+  if (/already|exists/i.test(message)) {
+    return "That email is already connected to an account.";
+  }
+  if (/invalid/i.test(message)) {
+    return "That email address was rejected.";
+  }
+  return `The confirmation email could not be sent: ${message}`;
+}
+
+/**
+ * Starts a username change. Nothing is written to the profile here: a pending
+ * request is stored, and a confirmation link goes to the account's email. The
+ * change is applied only after that link is opened and confirmed.
+ */
+export async function requestUsernameChange(username: string): Promise<ActionResult> {
+  const user = await requireUser();
+  const clean = username.trim().replace(/^@+/, "").toLowerCase();
+
+  if (!USERNAME_PATTERN.test(clean)) {
     return {
       ok: false,
       error: "Usernames are 3–32 characters: lowercase letters, digits and underscores.",
     };
   }
 
-  if (!user.email || input.confirmEmail.trim().toLowerCase() !== user.email.toLowerCase()) {
-    return { ok: false, error: "That does not match the email on this account." };
+  if (!user.email) {
+    return { ok: false, error: "This account has no email address to confirm with." };
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+
+  const { data: profile } = await supabase.from("profiles").select("username").maybeSingle();
+  if (profile?.username === clean) {
+    return { ok: false, error: "That is already your username." };
+  }
+
+  const { data: taken } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("username", clean)
+    .maybeSingle();
+  if (taken) return { ok: false, error: "That username is taken." };
+
+  const { data: request, error } = await supabase
+    .from("profile_change_requests")
+    .insert({ owner_id: user.id, purpose: "username", payload: { username: clean } })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  const origin = requestOrigin(await headers());
+  const next = `/settings?confirm=${request.id}`;
+
+  // A one-time link to the address already on the account. Opening it proves
+  // control of the mailbox; the request row is what actually carries the change.
+  const { error: mail } = await supabase.auth.signInWithOtp({
+    email: user.email,
+    options: {
+      shouldCreateUser: false,
+      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+    },
+  });
+
+  if (mail) {
+    await supabase.from("profile_change_requests").delete().eq("id", request.id);
+    return { ok: false, error: mailFailure(mail.message) };
+  }
+
+  return { ok: true, id: request.id };
+}
+
+/** Applies a pending username change after the emailed link was opened. */
+export async function confirmUsernameChange(requestId: string): Promise<ActionResult> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data: request, error } = await supabase
+    .from("profile_change_requests")
+    .select("id, payload, expires_at")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (error) return { ok: false, error: explain(error.message) };
+  if (!request) {
+    return { ok: false, error: "That confirmation is no longer valid. Start again." };
+  }
+
+  if (new Date(request.expires_at).getTime() < Date.now()) {
+    await supabase.from("profile_change_requests").delete().eq("id", request.id);
+    return { ok: false, error: "That confirmation link expired. Start again." };
+  }
+
+  const username = (request.payload as { username?: string } | null)?.username ?? "";
+  if (!USERNAME_PATTERN.test(username)) {
+    return { ok: false, error: "That change is malformed. Start again." };
+  }
+
+  const { error: updateError } = await supabase
     .from("profiles")
     .update({ username })
     .eq("id", user.id);
 
-  if (error) {
-    if (/duplicate key|unique/i.test(error.message)) {
+  if (updateError) {
+    if (/duplicate key|unique/i.test(updateError.message)) {
       return { ok: false, error: "That username is taken." };
     }
-    return { ok: false, error: explain(error.message) };
+    return { ok: false, error: explain(updateError.message) };
   }
 
+  await supabase.from("profile_change_requests").delete().eq("id", request.id);
   revalidatePath("/app");
   revalidatePath("/settings");
   return { ok: true };
 }
 
 /**
- * Starts an email change. Supabase sends a confirmation link to the new
- * address, so nothing changes until that link is opened. The old address is
- * typed back first as the identity check, and the new address has to be
- * connected (confirmed) before it becomes the account email.
+ * Starts an email change. Supabase emails the new address; nothing changes
+ * until that link is opened. No address is typed twice: the mailbox is the
+ * proof, not a string match.
  */
-export async function changeEmail(input: {
-  currentEmail: string;
-  newEmail: string;
-}): Promise<ActionResult> {
+export async function changeEmail(newEmail: string): Promise<ActionResult> {
   const user = await requireUser();
-  const current = input.currentEmail.trim().toLowerCase();
-  const next = input.newEmail.trim().toLowerCase();
-
-  if (!user.email || current !== user.email.toLowerCase()) {
-    return { ok: false, error: "That does not match the email on this account." };
-  }
+  const next = newEmail.trim().toLowerCase();
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) {
     return { ok: false, error: "That is not a valid email address." };
   }
 
-  if (next === current) {
+  if (user.email && next === user.email.toLowerCase()) {
     return { ok: false, error: "That is already the email on this account." };
   }
 
@@ -602,15 +682,7 @@ export async function changeEmail(input: {
     { emailRedirectTo: `${origin}/auth/callback?next=/settings` },
   );
 
-  if (error) {
-    if (/already|exists/i.test(error.message)) {
-      return { ok: false, error: "That email is already connected to an account." };
-    }
-    if (/rate|limit/i.test(error.message)) {
-      return { ok: false, error: "Too many attempts. Try again in a minute." };
-    }
-    return { ok: false, error: "Could not start the email change. Try again." };
-  }
+  if (error) return { ok: false, error: mailFailure(error.message) };
 
   return { ok: true };
 }

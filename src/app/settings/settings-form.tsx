@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { FONT_SIZES, type EditorSettings } from "@/lib/settings";
 import {
   changeEmail,
+  confirmUsernameChange,
   deleteAccount,
   exportAccountData,
+  requestUsernameChange,
   updateEditorSettings,
   updateProfile,
-  updateUsername,
 } from "../app/actions";
 
 const QUOTA = 25 * 1024 * 1024;
@@ -44,10 +45,12 @@ export function SettingsForm({
   profile,
   settings,
   usage,
+  pendingUsername,
 }: {
   profile: { username: string; email: string; displayName: string; avatar: string | null };
   settings: EditorSettings;
   usage: { storageBytes: number; files: number; folders: number };
+  pendingUsername: { id: string; username: string } | null;
 }) {
   const router = useRouter();
 
@@ -57,19 +60,18 @@ export function SettingsForm({
   const [profileError, setProfileError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  // Username changes need the account email typed back. Display name and
-  // picture do not.
+  // Username changes are confirmed by an emailed link. Display name and
+  // picture are not.
   const [username, setUsername] = useState(profile.username);
   const [usernamePanel, setUsernamePanel] = useState(false);
-  const [usernameEmail, setUsernameEmail] = useState("");
   const [usernameBusy, setUsernameBusy] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
-  const [usernameSaved, setUsernameSaved] = useState(false);
+  const [usernameNotice, setUsernameNotice] = useState<string | null>(null);
+  const [pending, setPending] = useState(pendingUsername);
+  const [confirmBusy, setConfirmBusy] = useState(false);
 
-  // An email change needs the current address confirmed and a new one that
-  // Supabase verifies by sending it a link.
+  // An email change is confirmed by the link Supabase sends to the new address.
   const [emailPanel, setEmailPanel] = useState(false);
-  const [emailCurrent, setEmailCurrent] = useState("");
   const [emailNext, setEmailNext] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -136,10 +138,11 @@ export function SettingsForm({
     window.setTimeout(() => setProfileState("idle"), 1500);
   }
 
-  async function saveUsername() {
+  async function sendUsernameConfirmation() {
     setUsernameBusy(true);
     setUsernameError(null);
-    const result = await updateUsername({ username, confirmEmail: usernameEmail });
+    setUsernameNotice(null);
+    const result = await requestUsernameChange(username);
     setUsernameBusy(false);
 
     if (!result.ok) {
@@ -148,17 +151,34 @@ export function SettingsForm({
     }
 
     setUsernamePanel(false);
-    setUsernameEmail("");
-    setUsernameSaved(true);
+    setUsernameNotice(
+      `Confirmation sent to ${profile.email}. Open the link there to finish changing your username.`,
+    );
+  }
+
+  async function confirmPendingUsername() {
+    if (!pending) return;
+    setConfirmBusy(true);
+    setUsernameError(null);
+    const result = await confirmUsernameChange(pending.id);
+    setConfirmBusy(false);
+
+    if (!result.ok) {
+      setUsernameError(result.error);
+      return;
+    }
+
+    setUsername(pending.username);
+    setPending(null);
+    setUsernameNotice("Username updated.");
     router.refresh();
-    window.setTimeout(() => setUsernameSaved(false), 1500);
   }
 
   async function startEmailChange() {
     setEmailBusy(true);
     setEmailError(null);
     setEmailNotice(null);
-    const result = await changeEmail({ currentEmail: emailCurrent, newEmail: emailNext });
+    const result = await changeEmail(emailNext);
     setEmailBusy(false);
 
     if (!result.ok) {
@@ -169,7 +189,6 @@ export function SettingsForm({
     setEmailNotice(
       `Confirmation sent to ${emailNext.trim()}. Open the link there to finish the change.`,
     );
-    setEmailCurrent("");
     setEmailNext("");
   }
 
@@ -215,6 +234,28 @@ export function SettingsForm({
   return (
     <div>
       <Section title="Profile" hint="Shown in the app header. Only you can see it.">
+        {pending ? (
+          <div className="border border-accent/60 bg-accent/10 p-3">
+            <p className="text-[12px] leading-relaxed text-ink">
+              Email confirmed. Change your username to{" "}
+              <span className="font-mono text-ink">{pending.username}</span>?
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void confirmPendingUsername()}
+                disabled={confirmBusy}
+                className={primary}
+              >
+                {confirmBusy ? "Saving" : "Confirm change"}
+              </button>
+              <button type="button" onClick={() => setPending(null)} className={secondary}>
+                Not now
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex items-center gap-4">
           <div className="flex h-16 w-16 items-center justify-center border border-rule-strong bg-panel">
             {avatar ? (
@@ -270,7 +311,7 @@ export function SettingsForm({
               onChange={(event) => {
                 setUsername(event.target.value);
                 setUsernameError(null);
-                setUsernameSaved(false);
+                setUsernameNotice(null);
               }}
               autoComplete="off"
               spellCheck={false}
@@ -280,30 +321,22 @@ export function SettingsForm({
             {usernamePanel ? (
               <div className="mt-2 border border-rule p-3">
                 <p className="text-[11px] leading-relaxed text-ink-faint">
-                  Username changes need confirmation. Type the email on this account.
+                  A confirmation link goes to {profile.email}. The username changes only after
+                  you open it.
                 </p>
-                <input
-                  type="email"
-                  value={usernameEmail}
-                  onChange={(event) => setUsernameEmail(event.target.value)}
-                  placeholder={profile.email}
-                  autoComplete="off"
-                  className={`${field} mt-2`}
-                />
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => void saveUsername()}
-                    disabled={usernameBusy || usernameEmail.trim().length === 0}
+                    onClick={() => void sendUsernameConfirmation()}
+                    disabled={usernameBusy || username.trim() === profile.username}
                     className={primary}
                   >
-                    {usernameBusy ? "Saving" : "Confirm and save"}
+                    {usernameBusy ? "Sending" : "Send confirmation"}
                   </button>
                   <button
                     type="button"
                     onClick={() => {
                       setUsernamePanel(false);
-                      setUsernameEmail("");
                       setUsernameError(null);
                     }}
                     className={secondary}
@@ -327,10 +360,8 @@ export function SettingsForm({
             )}
 
             {usernameError ? <p className="mt-2 text-[11px] text-red-300">{usernameError}</p> : null}
-            {usernameSaved ? (
-              <span className="mt-2 inline-block font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
-                saved
-              </span>
+            {usernameNotice ? (
+              <p className="mt-2 text-[11px] leading-relaxed text-ink-dim">{usernameNotice}</p>
             ) : null}
           </div>
 
@@ -343,17 +374,9 @@ export function SettingsForm({
             {emailPanel ? (
               <div className="mt-2 border border-rule p-3">
                 <p className="text-[11px] leading-relaxed text-ink-faint">
-                  Confirm the email on this account, then add the address you want connected. The
-                  new address gets a link, and the change finishes only after it is opened.
+                  The new address gets a link. The change finishes only after that link is
+                  opened.
                 </p>
-                <input
-                  type="email"
-                  value={emailCurrent}
-                  onChange={(event) => setEmailCurrent(event.target.value)}
-                  placeholder="Current email"
-                  autoComplete="off"
-                  className={`${field} mt-2`}
-                />
                 <input
                   type="email"
                   value={emailNext}
@@ -366,7 +389,7 @@ export function SettingsForm({
                   <button
                     type="button"
                     onClick={() => void startEmailChange()}
-                    disabled={emailBusy || emailCurrent.trim() === "" || emailNext.trim() === ""}
+                    disabled={emailBusy || emailNext.trim() === ""}
                     className={primary}
                   >
                     {emailBusy ? "Sending" : "Send confirmation"}
@@ -375,7 +398,6 @@ export function SettingsForm({
                     type="button"
                     onClick={() => {
                       setEmailPanel(false);
-                      setEmailCurrent("");
                       setEmailNext("");
                       setEmailError(null);
                     }}

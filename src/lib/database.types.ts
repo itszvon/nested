@@ -184,6 +184,33 @@ export type Database = {
           },
         ]
       }
+      profile_change_requests: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          owner_id: string
+          payload: Json
+          purpose: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          owner_id: string
+          payload: Json
+          purpose: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          owner_id?: string
+          payload?: Json
+          purpose?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar: string | null
