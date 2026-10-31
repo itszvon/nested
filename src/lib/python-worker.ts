@@ -30,8 +30,12 @@ function readLine(question) {
   }
 
   var length = Atomics.load(control, 1);
-  var bytes = new Uint8Array(buffer, 0, length);
-  var text = new TextDecoder().decode(bytes);
+  // TextDecoder rejects views backed by shared memory, so copy the bytes out
+  // into an ordinary array before decoding.
+  var shared = new Uint8Array(buffer, 0, length);
+  var copy = new Uint8Array(length);
+  copy.set(shared);
+  var text = new TextDecoder().decode(copy);
   Atomics.store(control, 0, 0);
   return text.replace(/\n$/, "");
 }
