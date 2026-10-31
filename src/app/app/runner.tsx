@@ -133,6 +133,7 @@ export function RunnerPanel({
   // is what makes SharedArrayBuffer and Atomics.wait legal.
   const [isolated, setIsolated] = useState(false);
   const [awaiting, setAwaiting] = useState(false);
+  const [stopped, setStopped] = useState(false);
   const [answer, setAnswer] = useState("");
   const workerRef = useRef<Worker | null>(null);
   const controlRef = useRef<Int32Array | null>(null);
@@ -170,7 +171,18 @@ export function RunnerPanel({
   useEffect(() => {
     setLines([]);
     setStatus("running");
+    setStopped(false);
   }, [runId]);
+
+  /** Kills the runtime. The only way out of a `while True` without waiting. */
+  function stop() {
+    workerRef.current?.terminate();
+    workerRef.current = null;
+    setStatus("done");
+    setAwaiting(false);
+    setStopped(true);
+    setLines((current) => [...current, { kind: "err", text: "Stopped." }]);
+  }
 
   useEffect(() => {
     function onMessage(event: MessageEvent) {
@@ -304,10 +316,19 @@ export function RunnerPanel({
                 ? "stopped"
                 : "finished"}
         </span>
+        {status === "running" ? (
+          <button
+            type="button"
+            onClick={stop}
+            className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-accent hover:text-ink"
+          >
+            stop
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onClose}
-          className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint hover:text-ink"
+          className={`${status === "running" ? "" : "ml-auto "}font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint hover:text-ink`}
         >
           close
         </button>
@@ -328,7 +349,7 @@ export function RunnerPanel({
         </div>
       ) : preview ? (
         <iframe
-          key={runId}
+          key={`${runId}-${stopped ? "stopped" : "live"}`}
           title="Preview"
           sandbox="allow-scripts allow-modals"
           referrerPolicy="no-referrer"
@@ -380,7 +401,7 @@ export function RunnerPanel({
               <p className="text-ink-faint">▌</p>
             ) : null}
           </div>
-          {usesWorker ? null : (
+          {usesWorker || stopped ? null : (
             <iframe
               key={runId}
               title="Runner"
