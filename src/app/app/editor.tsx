@@ -124,6 +124,10 @@ async function loadLanguage(language: string | null): Promise<Extension[]> {
       return [(await import("@codemirror/lang-css")).css()];
     case "cpp":
       return [(await import("@codemirror/lang-cpp")).cpp()];
+    case "json":
+      return [(await import("@codemirror/lang-json")).json()];
+    case "yaml":
+      return [(await import("@codemirror/lang-yaml")).yaml()];
     default:
       return [];
   }

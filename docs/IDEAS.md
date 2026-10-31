@@ -34,9 +34,11 @@ So there are two very different kinds of "new file type":
 | **TOML** (`.toml`) | Medium | Low | Cheap once YAML exists. |
 | **SQL dialect split** (`.pgsql`, `.mysql`) | Low | Low | Cosmetic; the current `sql` covers it. |
 
-**Recommendation:** add `mermaid`, `json`, and `yaml`. Three enum values, three
-entries in `languages.ts`, one new preview component. That is a weekend, not a
-rewrite, and it fills the biggest gap in what the tree can hold.
+**Shipped:** `json` and `yaml` (both `checks` tier — parsed in the browser, and
+Run prints the parsed result). `yml` maps to YAML.
+
+**Still open:** `mermaid`, which needs a preview component and SVG sanitising
+rather than just an enum value.
 
 ## Ranked: new kinds
 
@@ -49,17 +51,29 @@ rewrite, and it fills the biggest gap in what the tree can hold.
 | **Canvas / whiteboard** | Low | Very high | Needs image/blob storage, which the storage model and 25 MB quota were built to avoid. |
 | **Slides / deck** | Low | High | Not what a notes-and-code tree is for. |
 
-## Other ideas, not file types
+## Ten more features
 
-| Idea | Why | Cost |
-|---|---|---|
-| **Command palette** (`Ctrl/Cmd+K`) | The tree is fast but deep; jumping to a file by name is faster. | Medium |
-| **Pinned files** | Some files are open all day. A pin row above the tree beats scrolling. | Low |
-| **Folder colours / icons** | Cheap orientation aid in deep trees. | Low |
-| **Snapshot diff** | Versions exist but `restore_project` is all-or-nothing. Showing which files changed in a snapshot makes history usable. | Medium–high |
-| **Duplicate file** | Forks a file or a folder in one action; today it is copy-paste by hand. | Low |
-| **Language badge in the header** | `languages.ts` already knows runs/preview/external; surfacing it saves a click before pressing Run. | Very low |
-| **Search** | Already planned for v1.1 in the SPEC. | High |
+Ordered by value for cost. None of these are file types.
+
+| # | Idea | What it does | Cost |
+|---|---|---|---|
+| 1 | **Quick capture** | A small always-available box that appends a line to `inbox.md` at the top level, then gets out of the way. Removes the tree navigation from the most common action: writing something down before it is lost. | Low |
+| 2 | **Templates** | "Save as template" on any file; the new-file dialog gains a second column of templates. A project becomes repeatable without copy-paste. | Low–medium |
+| 3 | **Duplicate** | Fork a file or a whole folder in one action, with `(copy)` naming and its own versions. Today this is manual. | Low |
+| 4 | **Pinned files** | A fixed row above the tree for the three or four files open all day, independent of where they live. | Low |
+| 5 | **Folder colours and icons** | Orientation in deep trees, stored as a column on `folders`. Pure UI, no behaviour change. | Low |
+| 6 | **Snapshot diff** | `restore_project` is all-or-nothing. Show which files a snapshot changed, and a line diff before restoring. Makes history usable rather than theoretical. | Medium–high |
+| 7 | **Version notes** | `versions.label` already exists and is never shown. Add "Save with a note" so a version list reads like a changelog. | Low |
+| 8 | **Project export as zip** | The JSON export is for machines. A zip of `.md`/`.py`/`.json` files is for people and for leaving. | Medium |
+| 9 | **Command palette** | `Ctrl/Cmd+K`: jump to a file, create one, switch project, open settings. The tree stops being the only navigation. | Medium |
+| 10 | **Focus mode** | Hide the sidebar and the header arrows, widen the editor. One keyboard shortcut, remembered per account. | Low |
+
+Two more that are close to free and worth folding into whichever ships first:
+
+- **Language badge in the file header** — `languages.ts` already knows whether a
+  language runs, previews, checks or needs a tool; showing it saves a click.
+- **Shortcut sheet** — press `?` for the list. The app already has a lot of
+  undiscoverable keyboard behaviour (F2, space, arrow keys, Ctrl+Enter).
 
 ## Explicitly not doing
 

@@ -416,6 +416,8 @@ export type Database = {
         | "rust"
         | "sql"
         | "bash"
+        | "json"
+        | "yaml"
       version_source: "file" | "project" | "auto"
     }
     CompositeTypes: {
@@ -560,6 +562,8 @@ export const Constants = {
         "rust",
         "sql",
         "bash",
+        "json",
+        "yaml",
       ],
       version_source: ["file", "project", "auto"],
     },

@@ -5,7 +5,7 @@
  * cannot claim to run in one place and refuse in another.
  */
 
-export type LanguageStatus = "runs" | "preview" | "external";
+export type LanguageStatus = "runs" | "preview" | "checks" | "external";
 
 export type LanguageInfo = {
   label: string;
@@ -26,11 +26,14 @@ export const LANGUAGE_INFO: Record<string, LanguageInfo> = {
   rust: { label: "Rust", status: "external", tool: "cargo" },
   sql: { label: "SQL", status: "runs" },
   bash: { label: "Bash", status: "external", tool: "a shell" },
+  json: { label: "JSON", status: "checks" },
+  yaml: { label: "YAML", status: "checks" },
 };
 
 export const STATUS_LABEL: Record<LanguageStatus, string> = {
   runs: "runs here",
   preview: "preview only",
+  checks: "checked here",
   external: "external tool",
 };
 

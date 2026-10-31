@@ -30,6 +30,8 @@ const LANGUAGES = [
   { id: "cpp", label: "C++", ext: "cpp", status: "external" },
   { id: "sql", label: "SQL", ext: "sql", status: "external" },
   { id: "bash", label: "Bash", ext: "sh", status: "external" },
+  { id: "json", label: "JSON", ext: "json", status: "checks" },
+  { id: "yaml", label: "YAML", ext: "yaml", status: "checks" },
 ] as const;
 
 const TOOL: Record<string, string> = {
@@ -64,6 +66,9 @@ const EXT_LANGUAGE: Record<string, string> = {
   sh: "bash",
   bash: "bash",
   zsh: "bash",
+  json: "json",
+  yaml: "yaml",
+  yml: "yaml",
 };
 
 export function Modal({
@@ -272,7 +277,9 @@ export function NewFileDialog({
                     ? "  ·  external tool"
                     : entry.status === "preview"
                       ? "  ·  preview only"
-                      : "  ·  runs here"}
+                      : entry.status === "checks"
+                        ? "  ·  checked here"
+                        : "  ·  runs here"}
                 </option>
               ))}
             </select>
@@ -282,7 +289,9 @@ export function NewFileDialog({
                 ? "Runs inside Nested."
                 : selectedLanguage.status === "preview"
                   ? "HTML and CSS render as a preview. Nothing executes."
-                  : `Does not run in Nested. Use ${TOOL[selectedLanguage.id]} on your machine.`}
+                  : selectedLanguage.status === "checks"
+                    ? "Parsed and checked in the browser. Run prints the parsed result."
+                    : `Does not run in Nested. Use ${TOOL[selectedLanguage.id]} on your machine.`}
             </p>
           </div>
         ) : (

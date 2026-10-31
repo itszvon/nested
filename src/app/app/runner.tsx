@@ -111,7 +111,16 @@ function cssDocument(code: string) {
 
 type ConsoleLine = { kind: "out" | "ask" | "in" | "err"; text: string };
 
-const SUPPORTED = new Set(["javascript", "python", "typescript", "sql", "html", "css"]);
+const SUPPORTED = new Set([
+  "javascript",
+  "python",
+  "typescript",
+  "sql",
+  "html",
+  "css",
+  "json",
+  "yaml",
+]);
 
 export function RunnerPanel({
   language,
@@ -218,6 +227,40 @@ export function RunnerPanel({
     setStatus("running");
     setStopped(false);
   }, [runId]);
+
+  /**
+   * JSON and YAML have no runtime: running them means parsing. The parsed
+   * result is printed, so the panel behaves like every other language.
+   */
+  useEffect(() => {
+    if (language !== "json" && language !== "yaml") return;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const value =
+          language === "json"
+            ? JSON.parse(code)
+            : (await import("js-yaml")).load(code);
+
+        if (cancelled) return;
+        setLines([
+          { kind: "out", text: language === "json" ? "valid json" : "valid yaml" },
+          { kind: "out", text: JSON.stringify(value, null, 2) ?? "null" },
+        ]);
+      } catch (error) {
+        if (cancelled) return;
+        setLines([{ kind: "err", text: (error as Error).message }]);
+      }
+
+      setStatus("done");
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [language, code, runId]);
 
   /** Kills the runtime. The only way out of a `while True` without waiting. */
   function stop() {
@@ -368,6 +411,8 @@ export function RunnerPanel({
     bumpIdle();
   }
 
+  // Only the iframe runtimes need a document. Everything else prints into the
+  // console pane or the worker, so an empty document is rendered instead.
   const document_ = supported
     ? language === "javascript"
       ? jsDocument(code, nonce)
@@ -375,7 +420,9 @@ export function RunnerPanel({
         ? pythonDocument(code, nonce)
         : language === "html"
           ? code
-          : cssDocument(code)
+          : language === "css"
+            ? cssDocument(code)
+            : null
     : null;
 
   return (

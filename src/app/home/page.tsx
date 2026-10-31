@@ -9,7 +9,7 @@ import { getCurrentUser } from "@/lib/supabase/server";
 export const metadata: Metadata = {
   title: "Nested · notes and code in folders inside folders",
   description:
-    "Notes and code in one tree. Google sign-in, a code editor for ten languages, and a saved version behind every save.",
+    "Notes and code in one tree. Google sign-in, a code editor for twelve languages, and a saved version behind every save.",
 };
 
 const FAQ = [
@@ -23,7 +23,7 @@ const FAQ = [
   },
   {
     q: "Which languages actually run?",
-    a: "JavaScript, TypeScript, Python and SQL run in your browser. HTML and CSS render a preview. Java, Go, Rust, C++ and Bash are edited and checked but need their own tool.",
+    a: "JavaScript, TypeScript, Python and SQL run in your browser. HTML and CSS render a preview. JSON and YAML are parsed and checked, and Run prints the parsed result. Java, Go, Rust, C++ and Bash are edited and checked but need their own tool.",
   },
   {
     q: "What happens when I delete something?",
@@ -45,7 +45,7 @@ const LIMITS = [
   ["Files per account", "2,000"],
   ["Folders per account", "500"],
   ["Trash retention", "30 days"],
-  ["Languages", "Python, JavaScript, TypeScript, Java, Go, Rust, C++, SQL, Bash, HTML/CSS"],
+  ["Languages", "Python, JavaScript, TypeScript, Java, Go, Rust, C++, SQL, Bash, HTML/CSS, JSON, YAML"],
 ];
 
 const FEATURES = [
@@ -56,8 +56,8 @@ const FEATURES = [
   },
   {
     label: "02 / editor",
-    title: "Five languages, one editor",
-    body: "Python, JavaScript, TypeScript, Java, Go, Rust, C++, SQL, Bash and HTML/CSS. Colouring, bracket matching, folding, search, several cursors, a format button, and blank-line tidying that keeps the gaps between your functions.",
+    title: "Twelve languages, one editor",
+    body: "Python, JavaScript, TypeScript, Java, Go, Rust, C++, SQL, Bash, HTML/CSS, JSON and YAML. Colouring, bracket matching, folding, search, several cursors, a format button, and blank-line tidying that keeps the gaps between your functions.",
   },
   {
     label: "03 / history",
@@ -202,7 +202,7 @@ export default async function LandingPage() {
           <h1 className="mt-5 max-w-4xl text-[clamp(2rem,4.4vw,3.4rem)] font-semibold leading-[1.07] tracking-[-0.03em] text-ink">
             Notes, Markdown and code in one tree:
             <br />
-            folders inside folders, ten languages,
+            folders inside folders, twelve languages,
             <br />
             a saved version behind every save.
           </h1>
