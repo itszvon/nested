@@ -38,16 +38,22 @@ function timeOf(iso: string) {
   }
 }
 
+// Which pane owns Ctrl+S / Ctrl+Enter when two are open. Updated by pointer
+// and focus, so the split view cannot save both files at once.
+let activePane: string | null = null;
+
 export function FilePane({
   file,
   userId,
   settings,
   openVersions = false,
+  isPrimary = true,
 }: {
   file: OpenFile;
   userId: string;
   settings: EditorSettings;
   openVersions?: boolean;
+  isPrimary?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -69,7 +75,9 @@ export function FilePane({
   useEffect(() => {
     if (!openVersions) return;
     setVersionsOpen(true);
-    router.replace(`${pathname}?f=${file.id}`, { scroll: false });
+    const params = new URLSearchParams(window.location.search);
+    params.delete("versions");
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [openVersions, file.id, pathname, router]);
 
   const [text, setText] = useState(cached?.text ?? file.content);
@@ -86,6 +94,13 @@ export function FilePane({
   textRef.current = text;
 
   const dirty = text !== savedText;
+
+  // The tab strip draws its dot from this, without lifting editor state.
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("nested:dirty", { detail: { id: file.id, dirty } }),
+    );
+  }, [dirty, file.id]);
 
   // Look for a draft left behind by a crash. Only offered when it differs from
   // what the server has, so a successful save never nags.
@@ -168,6 +183,9 @@ export function FilePane({
   // Ctrl/Cmd+S saves instead of opening the browser's save dialog.
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      if (activePane !== null && activePane !== file.id) return;
+      if (activePane === null && !isPrimary) return;
+
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         requestSave();
@@ -342,7 +360,15 @@ export function FilePane({
   const size = new TextEncoder().encode(text).length;
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
+    <div
+      className="flex min-w-0 flex-1 flex-col"
+      onPointerDown={() => {
+        activePane = file.id;
+      }}
+      onFocusCapture={() => {
+        activePane = file.id;
+      }}
+    >
       <div className="flex h-11 shrink-0 items-center gap-3 overflow-hidden border-b border-rule px-4">
         <span className="flex min-w-0 items-center gap-1.5">
           {dirty ? (

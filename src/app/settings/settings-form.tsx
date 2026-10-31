@@ -17,17 +17,50 @@ import {
 
 const QUOTA = 25 * 1024 * 1024;
 
+const NAV: Array<{ group: string; links: Array<[string, string]> }> = [
+  {
+    group: "Account",
+    links: [
+      ["profile", "Profile"],
+      ["versions", "Versions"],
+    ],
+  },
+  {
+    group: "Editor",
+    links: [
+      ["editor", "Editor"],
+      ["shortcuts", "Shortcuts"],
+    ],
+  },
+  { group: "Workspace", links: [["storage", "Storage"]] },
+  {
+    group: "Data",
+    links: [
+      ["data", "Export"],
+      ["delete", "Delete account"],
+    ],
+  },
+];
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 102.4) / 10} KB`;
+  return `${Math.round(bytes / 104857.6) / 10} MB`;
+}
+
 function Section({
+  id,
   title,
   hint,
   children,
 }: {
+  id?: string;
   title: string;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-b border-rule py-8 first:pt-0">
+    <section id={id} className="scroll-mt-8 border-b border-rule py-8 first:pt-0">
       <h2 className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-faint">{title}</h2>
       {hint ? <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">{hint}</p> : null}
       <div className="mt-4 space-y-4">{children}</div>
@@ -47,10 +80,18 @@ export function SettingsForm({
   profile,
   settings,
   usage,
+  breakdown,
 }: {
   profile: { username: string; email: string; displayName: string; avatar: string | null };
   settings: EditorSettings;
   usage: { storageBytes: number; files: number; folders: number };
+  breakdown: {
+    fileBytes: number;
+    versionBytes: number;
+    versionCount: number;
+    projects: Array<{ name: string; bytes: number }>;
+    files: Array<{ name: string; project: string; bytes: number }>;
+  };
 }) {
   const router = useRouter();
 
@@ -253,8 +294,37 @@ export function SettingsForm({
   }
 
   return (
-    <div>
-      <Section title="Profile" hint="Shown in the app header. Only you can see it.">
+    <div className="grid gap-10 lg:grid-cols-[150px_minmax(0,1fr)]">
+      <nav aria-label="Settings sections" className="hidden lg:block">
+        <div className="sticky top-8 space-y-6">
+          {NAV.map((group) => (
+            <div key={group.group}>
+              <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-faint">
+                {group.group}
+              </p>
+              <ul className="space-y-1">
+                {group.links.map(([id, label]) => (
+                  <li key={id}>
+                    <a
+                      href={`#${id}`}
+                      className="block font-mono text-[10px] uppercase tracking-[0.1em] text-ink-dim hover:text-ink"
+                    >
+                      {label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </nav>
+
+      <div>
+      <Section
+        id="profile"
+        title="Profile"
+        hint="Shown in the app header. Only you can see it."
+      >
         <div className="flex items-center gap-4">
           <div className="flex h-16 w-16 items-center justify-center border border-rule-strong bg-panel">
             {avatar ? (
@@ -562,7 +632,7 @@ export function SettingsForm({
         </div>
       </Section>
 
-      <Section title="Editor" hint="Applies to every file, on every device.">
+      <Section id="editor" title="Editor" hint="Applies to every file, on every device.">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={label} htmlFor="tab-size">
@@ -620,7 +690,7 @@ export function SettingsForm({
         ) : null}
       </Section>
 
-      <Section title="Storage" hint="Files, versions and trash share one quota.">
+      <Section id="storage" title="Storage" hint="Files, versions and trash share one quota.">
         <div>
           <div className="flex items-baseline justify-between font-mono text-[10px] text-ink-faint">
             <span>
@@ -643,9 +713,64 @@ export function SettingsForm({
             <dd className="mt-1 text-[15px] tracking-normal text-ink">{usage.folders}</dd>
           </div>
         </dl>
+
+        <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
+          {formatBytes(breakdown.fileBytes)} in files · {formatBytes(breakdown.versionBytes)} in{" "}
+          {breakdown.versionCount} versions
+        </p>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className={label}>Biggest projects</p>
+            <ul className="border border-rule">
+              {breakdown.projects.length === 0 ? (
+                <li className="px-3 py-2 text-[11px] text-ink-faint">Nothing yet.</li>
+              ) : (
+                breakdown.projects.map((project) => (
+                  <li
+                    key={project.name}
+                    className="flex items-center justify-between gap-3 border-b border-rule px-3 py-1.5 last:border-b-0"
+                  >
+                    <span className="truncate text-[12px] text-ink-dim">{project.name}</span>
+                    <span className="shrink-0 font-mono text-[10px] text-ink-faint">
+                      {formatBytes(project.bytes)}
+                    </span>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+
+          <div>
+            <p className={label}>Biggest files</p>
+            <ul className="border border-rule">
+              {breakdown.files.length === 0 ? (
+                <li className="px-3 py-2 text-[11px] text-ink-faint">Nothing yet.</li>
+              ) : (
+                breakdown.files.map((file) => (
+                  <li
+                    key={`${file.project}:${file.name}`}
+                    className="border-b border-rule px-3 py-1.5 last:border-b-0"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="truncate text-[12px] text-ink-dim">{file.name}</span>
+                      <span className="shrink-0 font-mono text-[10px] text-ink-faint">
+                        {formatBytes(file.bytes)}
+                      </span>
+                    </div>
+                    <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-ink-faint">
+                      {file.project}
+                    </p>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        </div>
       </Section>
 
       <Section
+        id="versions"
         title="Versions"
         hint="Every save is a version you can name, compare side by side, and apply."
       >
@@ -654,7 +779,7 @@ export function SettingsForm({
         </Link>
       </Section>
 
-      <Section title="Shortcuts" hint="Everything the keyboard can do, in one place.">
+      <Section id="shortcuts" title="Shortcuts" hint="Everything the keyboard can do, in one place.">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
@@ -665,7 +790,10 @@ export function SettingsForm({
           <tbody>
             {[
               ["Ctrl/Cmd K", "Command palette: jump to a file or folder, or run a command"],
+              ["Tab click", "Open that file; clicking the split tab swaps the two panes"],
+              ["◫ on a tab", "Open that file in split view, or close the split"],
               ["Ctrl/Cmd S", "Save this file, and name the version"],
+              ["× on a tab", "Close the tab"],
               ["Ctrl/Cmd Enter", "Run the file"],
               ["F2", "Rename the focused row"],
               ["Space", "Tick or untick a row while selecting"],
@@ -683,13 +811,14 @@ export function SettingsForm({
         </table>
       </Section>
 
-      <Section title="Your data" hint="Every folder, file and saved version, as JSON.">
+      <Section id="data" title="Your data" hint="Every folder, file and saved version, as JSON.">
         <button type="button" onClick={() => void download()} disabled={exporting} className={secondary}>
           {exporting ? "Preparing" : "Export everything"}
         </button>
       </Section>
 
       <Section
+        id="delete"
         title="Delete account"
         hint="Removes the account, every folder, every file, and every saved version. This cannot be undone and the trash does not apply."
       >
@@ -715,6 +844,7 @@ export function SettingsForm({
         </div>
         {deleteError ? <p className="text-[11px] text-red-300">{deleteError}</p> : null}
       </Section>
+      </div>
     </div>
   );
 }

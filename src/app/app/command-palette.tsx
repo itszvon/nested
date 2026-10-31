@@ -44,7 +44,13 @@ export function CommandPalette({ folders, files }: { folders: FolderRow[]; files
         id: `file:${file.id}`,
         label: file.name,
         detail: file.kind === "code" ? `file · ${file.language ?? "code"}` : "file · markdown",
-        run: () => router.replace(`/app?f=${file.id}`, { scroll: false }),
+        run: () => {
+          const params = new URLSearchParams(window.location.search);
+          params.set("f", file.id);
+          params.delete("versions");
+          params.delete("r");
+          router.replace(`/app?${params.toString()}`, { scroll: false });
+        },
       });
     }
 

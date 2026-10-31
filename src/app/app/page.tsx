@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceRows } from "@/lib/workspace";
 import { signOut } from "./actions";
 import { CommandPalette } from "./command-palette";
+import { FileTabs } from "./tabs";
 import { FilePane } from "./file-pane";
 import { SidebarShell } from "./sidebar-shell";
 import { SidebarToggle } from "./sidebar-toggle";
@@ -25,7 +26,7 @@ export const instant = false;
 export default async function AppPage({
   searchParams,
 }: {
-  searchParams: Promise<{ f?: string; versions?: string; r?: string }>;
+  searchParams: Promise<{ f?: string; versions?: string; r?: string; s?: string }>;
 }) {
   await connection();
 
@@ -45,7 +46,11 @@ export default async function AppPage({
   const settings = readSettings(profile.data?.settings);
 
   const selectedId = params.f ?? null;
-  const openFile = selectedId ? await getFile(selectedId) : null;
+  const splitId = params.s && params.s !== params.f ? params.s : null;
+  const [openFile, splitFile] = await Promise.all([
+    selectedId ? getFile(selectedId) : Promise.resolve(null),
+    splitId ? getFile(splitId) : Promise.resolve(null),
+  ]);
 
   return (
     <div className="flex h-dvh flex-col">
@@ -103,28 +108,48 @@ export default async function AppPage({
           <WorkspaceTree folders={folders} files={files} selectedId={selectedId} />
         </SidebarShell>
 
-        {openFile ? (
-          <FilePane
-            key={`${openFile.id}:${params.r ?? "0"}`}
-            file={openFile}
-            userId={user.id}
-            settings={settings}
-            openVersions={params.versions === "1"}
-          />
-        ) : (
-          <section className="flex min-w-0 flex-1 items-center justify-center px-6">
-            <div className="max-w-sm">
-              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
-                no entry open
-              </p>
-              <p className="mt-2 text-[13px] leading-relaxed text-ink-dim">
-                {files.length === 0
-                  ? "This account has no files yet. Create a project, then a file inside it."
-                  : "Select a file from the left. Arrow keys navigate; Enter opens."}
-              </p>
-            </div>
-          </section>
-        )}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <FileTabs files={files} activeId={selectedId} splitId={splitId} />
+
+          <div className="flex min-h-0 flex-1">
+            {openFile ? (
+              <FilePane
+                key={`${openFile.id}:${params.r ?? "0"}`}
+                file={openFile}
+                userId={user.id}
+                settings={settings}
+                openVersions={params.versions === "1"}
+              />
+            ) : (
+              <section className="flex min-w-0 flex-1 items-center justify-center px-6">
+                <div className="max-w-sm">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
+                    no entry open
+                  </p>
+                  <p className="mt-2 text-[13px] leading-relaxed text-ink-dim">
+                    {files.length === 0
+                      ? "This account has no files yet. Create a project, then a file inside it."
+                      : "Select a file from the left. Arrow keys navigate; Enter opens."}
+                  </p>
+                </div>
+              </section>
+            )}
+
+            {splitFile ? (
+              <>
+                <div aria-hidden="true" className="w-px shrink-0 bg-rule" />
+                <FilePane
+                  key={`${splitFile.id}:split`}
+                  file={splitFile}
+                  userId={user.id}
+                  settings={settings}
+                  openVersions={false}
+                  isPrimary={false}
+                />
+              </>
+            ) : null}
+          </div>
+        </div>
       </div>
     </div>
   );

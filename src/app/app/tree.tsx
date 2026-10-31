@@ -248,7 +248,12 @@ export function WorkspaceTree({
   }
 
   function selectFile(id: string) {
-    router.replace(`${pathname}?f=${id}`, { scroll: false });
+    // Keep the split pane; only the primary file changes.
+    const params = new URLSearchParams(window.location.search);
+    params.delete("versions");
+    params.delete("r");
+    params.set("f", id);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   /** Pinned rows may sit inside collapsed folders; open the path to them. */

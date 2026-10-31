@@ -110,6 +110,9 @@ useful half of each and drops the ceremony.
 ### Interface
 
 - Dark theme only.
+- Open files in **tabs**, with one optional **split view** pane beside the primary
+  file. Both panes edit and save independently; shortcuts follow the pane you last
+  touched.
 - Command palette on Ctrl/Cmd+K over file and folder names plus a few actions.
 - A shortcut table in Settings documents every keyboard action.
 - An onboarding document is created for every new account.
