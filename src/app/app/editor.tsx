@@ -61,10 +61,11 @@ const greenStrings = HighlightStyle.define([
   },
 ]);
 
-// An f-string's {…} hole is parsed as a FormatReplacement: the grammar tags the
-// variable and operators inside it normally, so they refused to turn green.
-// Marking the whole hole makes the string read as one colour, braces included.
-const replacementMark = Decoration.mark({ class: "cm-format-replacement" });
+// The Python grammar tags an f-string's body as `operator`, so one-dark paints
+// it cyan while ordinary strings are green. Marking the whole FormatString (the
+// prefix, quotes, text and every {hole}) and forcing one colour makes the
+// literal read exactly like a plain string.
+const stringMark = Decoration.mark({ class: "cm-format-string" });
 
 function buildReplacementDecorations(view: EditorView): DecorationSet {
   const ranges: Array<{ from: number; to: number }> = [];
@@ -75,7 +76,7 @@ function buildReplacementDecorations(view: EditorView): DecorationSet {
       from,
       to,
       enter(node) {
-        if (node.name !== "FormatReplacement") return;
+        if (node.name !== "FormatString" && node.name !== "ContinuedString") return;
         const key = `${node.from}:${node.to}`;
         if (seen.has(key)) return;
         seen.add(key);
@@ -87,7 +88,7 @@ function buildReplacementDecorations(view: EditorView): DecorationSet {
   ranges.sort((a, b) => a.from - b.from || a.to - b.to);
 
   const builder = new RangeSetBuilder<Decoration>();
-  for (const range of ranges) builder.add(range.from, range.to, replacementMark);
+  for (const range of ranges) builder.add(range.from, range.to, stringMark);
   return builder.finish();
 }
 
@@ -138,9 +139,9 @@ function makeTheme(fontSize: number) {
       border: "none",
       paddingRight: "4px",
     },
-    // Higher specificity than the highlight classes, so the hole and
-    // everything inside it stays string-green.
-    ".cm-format-replacement, .cm-format-replacement *": { color: "#98c379 !important" },
+    // Higher specificity than the highlight classes, so the prefix, quotes,
+    // text and every interpolation hole stay string-green.
+    ".cm-format-string, .cm-format-string *": { color: "#98c379 !important" },
     ".cm-activeLine": { backgroundColor: "rgba(255,255,255,0.025)" },
     ".cm-activeLineGutter": {
       backgroundColor: "transparent",
