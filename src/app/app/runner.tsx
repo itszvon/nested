@@ -134,6 +134,8 @@ export function RunnerPanel({
   const [isolated, setIsolated] = useState(false);
   const [awaiting, setAwaiting] = useState(false);
   const [stopped, setStopped] = useState(false);
+  const [height, setHeight] = useState(224);
+  const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const [answer, setAnswer] = useState("");
   const workerRef = useRef<Worker | null>(null);
   const controlRef = useRef<Int32Array | null>(null);
@@ -142,6 +144,42 @@ export function RunnerPanel({
 
   useEffect(() => {
     setIsolated(window.crossOriginIsolated === true);
+  }, []);
+
+  // The output panel is resizable from its top edge, remembered per device.
+  useEffect(() => {
+    const saved = Number(localStorage.getItem("nested.runnerHeight"));
+    if (Number.isFinite(saved) && saved >= 120 && saved <= 620) setHeight(saved);
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("nested.runnerHeight", String(height));
+    } catch {
+      /* ignore */
+    }
+  }, [height]);
+
+  useEffect(() => {
+    function onMove(event: PointerEvent) {
+      const drag = dragRef.current;
+      if (!drag) return;
+      setHeight(
+        Math.min(620, Math.max(120, drag.startHeight + (drag.startY - event.clientY))),
+      );
+    }
+    function onUp() {
+      if (!dragRef.current) return;
+      dragRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
   }, []);
 
   const supported = language !== null && SUPPORTED.has(language);
@@ -302,7 +340,22 @@ export function RunnerPanel({
     : null;
 
   return (
-    <div className="flex h-56 shrink-0 flex-col border-t border-rule bg-panel/60">
+    <div
+      style={{ height }}
+      className="flex shrink-0 flex-col border-t border-rule bg-panel/60"
+    >
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize output"
+        onPointerDown={(event) => {
+          dragRef.current = { startY: event.clientY, startHeight: height };
+          document.body.style.cursor = "row-resize";
+          document.body.style.userSelect = "none";
+          event.preventDefault();
+        }}
+        className="h-1 w-full shrink-0 cursor-row-resize hover:bg-accent/40"
+      />
       <div className="flex h-8 shrink-0 items-center gap-3 border-b border-rule px-3">
         <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">
           {preview ? "preview" : "output"}

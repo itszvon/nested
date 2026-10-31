@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/supabase/server";
 import { getWorkspaceRows } from "@/lib/workspace";
 import { signOut } from "./actions";
 import { FilePane } from "./file-pane";
+import { SidebarShell } from "./sidebar-shell";
 import { WorkspaceTree } from "./tree";
 
 export const metadata: Metadata = {
@@ -62,9 +63,9 @@ export default async function AppPage({
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="w-[300px] shrink-0 overflow-y-auto border-r border-rule bg-panel/50">
+        <SidebarShell>
           <WorkspaceTree folders={folders} files={files} selectedId={selectedId} />
-        </aside>
+        </SidebarShell>
 
         {openFile ? (
           <FilePane
