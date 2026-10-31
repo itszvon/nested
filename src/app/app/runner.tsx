@@ -72,14 +72,16 @@ function pythonDocument(code: string, nonce: string) {
     // Pyodide has no stdin, so input() would raise OSError 29. Route it to a
     // browser prompt instead, and print the question first so it is not lost.
     pyodide.globals.set("js_input", function (question) {
-      var answer = window.prompt(question ? String(question) : "input", "");
-      return answer === null ? "" : String(answer);
+      var asked = question ? String(question) : "";
+      send("input", asked);
+      var answer = window.prompt(asked || "input", "");
+      answer = answer === null ? "" : String(answer);
+      send("echo", answer);
+      return answer;
     });
     await pyodide.runPythonAsync([
       "import builtins",
       "def _nested_input(question=''):",
-      "    if question:",
-      "        print(question)",
       "    return str(js_input(question))",
       "builtins.input = _nested_input",
     ].join("\\n"));
@@ -105,6 +107,8 @@ function cssDocument(code: string) {
 </body></html>`;
 }
 
+type ConsoleLine = { kind: "out" | "ask" | "in" | "err"; text: string };
+
 const SUPPORTED = new Set(["javascript", "python", "html", "css"]);
 
 export function RunnerPanel({
@@ -119,9 +123,10 @@ export function RunnerPanel({
   onClose: () => void;
 }) {
   const nonce = useMemo(() => Math.random().toString(36).slice(2), [runId]);
-  const [lines, setLines] = useState<string[]>([]);
+  const [lines, setLines] = useState<ConsoleLine[]>([]);
   const [status, setStatus] = useState<"running" | "done" | "timeout">("running");
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const consoleRef = useRef<HTMLDivElement | null>(null);
 
   const supported = language !== null && SUPPORTED.has(language);
   const preview = language === "html" || language === "css";
@@ -136,7 +141,10 @@ export function RunnerPanel({
     const limit = language === "python" ? 120000 : 15000;
     idleTimer.current = setTimeout(() => {
       setStatus((current) => (current === "running" ? "timeout" : current));
-      setLines((current) => [...current, `No output for ${limit / 1000}s, stopped.`]);
+      setLines((current) => [
+        ...current,
+        { kind: "err", text: `No output for ${limit / 1000}s, stopped.` },
+      ]);
     }, limit);
   }, [language, supported]);
 
@@ -151,12 +159,18 @@ export function RunnerPanel({
       if (!data || data.nonce !== nonce) return;
 
       if (data.type === "log" || data.type === "status") {
-        setLines((current) => [...current, String(data.text)]);
+        setLines((current) => [...current, { kind: "out", text: String(data.text) }]);
+        bumpIdle();
+      } else if (data.type === "input") {
+        setLines((current) => [...current, { kind: "ask", text: String(data.text) }]);
+        bumpIdle();
+      } else if (data.type === "echo") {
+        setLines((current) => [...current, { kind: "in", text: String(data.text) }]);
         bumpIdle();
       } else if (data.type === "done") {
         setStatus("done");
       } else if (data.type === "error") {
-        setLines((current) => [...current, `Error: ${data.text}`]);
+        setLines((current) => [...current, { kind: "err", text: String(data.text) }]);
         setStatus("done");
       }
     }
@@ -170,6 +184,11 @@ export function RunnerPanel({
       if (idleTimer.current) clearTimeout(idleTimer.current);
     };
   }, [bumpIdle, runId]);
+
+  useEffect(() => {
+    const element = consoleRef.current;
+    if (element) element.scrollTop = element.scrollHeight;
+  }, [lines]);
 
   const document_ = supported
     ? language === "javascript"
@@ -229,9 +248,29 @@ export function RunnerPanel({
         />
       ) : (
         <div className="flex min-h-0 flex-1">
-          <pre className="min-w-0 flex-1 overflow-auto whitespace-pre-wrap px-3 py-2 font-mono text-[12px] leading-relaxed text-ink-dim">
-            {lines.length === 0 ? "…" : lines.join("\n")}
-          </pre>
+          <div
+            ref={consoleRef}
+            className="min-w-0 flex-1 overflow-auto bg-ground/70 px-3 py-2 font-mono text-[12px] leading-[1.6]"
+          >
+            {lines.length === 0 ? <p className="text-ink-faint">…</p> : null}
+            {lines.map((line, index) => (
+              <p
+                key={index}
+                className={
+                  line.kind === "ask"
+                    ? "text-ink"
+                    : line.kind === "in"
+                      ? "text-accent"
+                      : line.kind === "err"
+                        ? "text-red-300"
+                        : "text-ink-dim"
+                }
+              >
+                {line.kind === "in" ? `> ${line.text}` : line.text}
+              </p>
+            ))}
+            {status === "running" ? <p className="text-ink-faint">▌</p> : null}
+          </div>
           <iframe
             key={runId}
             title="Runner"
