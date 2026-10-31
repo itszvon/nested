@@ -61,6 +61,9 @@ function explain(message: string): string {
   if (/parent_not_owned|row-level security/i.test(message)) {
     return "That folder isn't yours.";
   }
+  if (/permission denied/i.test(message)) {
+    return "This account isn't allowed to change that. Reload and try again.";
+  }
   if (/parent_trashed/.test(message)) {
     return "The destination is in the trash.";
   }
