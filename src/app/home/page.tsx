@@ -159,10 +159,12 @@ export default function LandingPage() {
             Private notes and code
           </p>
 
-          <h1 className="mt-5 max-w-3xl text-[clamp(2.2rem,5vw,3.6rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink">
-            Folders inside folders,
+          <h1 className="mt-5 max-w-4xl text-[clamp(2rem,4.4vw,3.4rem)] font-semibold leading-[1.07] tracking-[-0.03em] text-ink">
+            Notes, Markdown and code in one tree:
             <br />
-            as deep as the work goes.
+            folders inside folders, five languages,
+            <br />
+            a saved version behind every save.
           </h1>
 
           <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-ink-dim">
@@ -262,9 +264,6 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-8 sm:flex-row sm:items-center">
           <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-faint">
             Nested
-          </span>
-          <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint sm:ml-auto">
-            Next.js and Supabase · no analytics · dark only
           </span>
         </div>
       </footer>
