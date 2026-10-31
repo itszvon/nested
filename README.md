@@ -100,7 +100,7 @@ not exist is worse than no runbook.
 |---|---|
 | Local setup | Works, see above |
 | Migrations | `npx supabase db push` against the linked project. Two-step when adding enum values, see [docs/adding-a-language.md](docs/adding-a-language.md) |
-| Production deploy | Not performed. `/home` must be in the Supabase redirect allow list and `NEXT_PUBLIC_SITE_URL` set before the first deploy |
+| Production deploy | Live from `master`. Commits must be authored by the Vercel account email; a different author makes Vercel block the deployment (state BLOCKED, errorLink about account configuration). | `/home` must be in the Supabase redirect allow list and `NEXT_PUBLIC_SITE_URL` set before the first deploy |
 | Backups | Not implemented. Supabase free tier has none; a nightly logical dump is planned and not built |
 | Restore | Untested. Requires the backup that does not exist yet |
 | Monitoring | `/api/health` is wired and returns 200; no external monitor alerts anyone yet |
