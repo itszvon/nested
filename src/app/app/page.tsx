@@ -49,19 +49,14 @@ export default async function AppPage({
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex h-10 shrink-0 items-center gap-3 border-b border-rule px-3">
-        <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink">
-          Nested
-        </span>
-        <SidebarToggle />
         <Link
           href="/home"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint hover:text-ink"
+          aria-label="Nested home"
+          className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink hover:text-accent"
         >
-          home
+          Nested
         </Link>
-        <span className="hidden font-mono text-[10px] tracking-[0.08em] text-ink-faint sm:inline">
-          {folders.length} folders · {files.length} files
-        </span>
+        <SidebarToggle />
 
         <div className="ml-auto flex items-center gap-3">
           <Link

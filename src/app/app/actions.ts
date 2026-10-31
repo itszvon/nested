@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
+import { SITE_URL } from "@/lib/site";
 
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -520,6 +521,92 @@ export async function updateProfile(input: {
 
   revalidatePath("/app");
   revalidatePath("/settings");
+  return { ok: true };
+}
+
+/**
+ * Changing the username is treated as an identity change: it needs the
+ * account's email typed back as confirmation. The username itself is checked
+ * here because the database constraint only guarantees uniqueness.
+ */
+export async function updateUsername(input: {
+  username: string;
+  confirmEmail: string;
+}): Promise<ActionResult> {
+  const user = await requireUser();
+  const username = input.username.trim().replace(/^@+/, "").toLowerCase();
+
+  if (!/^[a-z0-9_]{3,32}$/.test(username)) {
+    return {
+      ok: false,
+      error: "Usernames are 3–32 characters: lowercase letters, digits and underscores.",
+    };
+  }
+
+  if (!user.email || input.confirmEmail.trim().toLowerCase() !== user.email.toLowerCase()) {
+    return { ok: false, error: "That does not match the email on this account." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ username })
+    .eq("id", user.id);
+
+  if (error) {
+    if (/duplicate key|unique/i.test(error.message)) {
+      return { ok: false, error: "That username is taken." };
+    }
+    return { ok: false, error: explain(error.message) };
+  }
+
+  revalidatePath("/app");
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+/**
+ * Starts an email change. Supabase sends a confirmation link to the new
+ * address, so nothing changes until that link is opened. The old address is
+ * typed back first as the identity check, and the new address has to be
+ * connected (confirmed) before it becomes the account email.
+ */
+export async function changeEmail(input: {
+  currentEmail: string;
+  newEmail: string;
+}): Promise<ActionResult> {
+  const user = await requireUser();
+  const current = input.currentEmail.trim().toLowerCase();
+  const next = input.newEmail.trim().toLowerCase();
+
+  if (!user.email || current !== user.email.toLowerCase()) {
+    return { ok: false, error: "That does not match the email on this account." };
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) {
+    return { ok: false, error: "That is not a valid email address." };
+  }
+
+  if (next === current) {
+    return { ok: false, error: "That is already the email on this account." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser(
+    { email: next },
+    { emailRedirectTo: `${SITE_URL}/settings` },
+  );
+
+  if (error) {
+    if (/already|exists/i.test(error.message)) {
+      return { ok: false, error: "That email is already connected to an account." };
+    }
+    if (/rate|limit/i.test(error.message)) {
+      return { ok: false, error: "Too many attempts. Try again in a minute." };
+    }
+    return { ok: false, error: "Could not start the email change. Try again." };
+  }
+
   return { ok: true };
 }
 

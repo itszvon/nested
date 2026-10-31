@@ -50,7 +50,9 @@ export default async function SettingsPage() {
         <SettingsForm
           profile={{
             username: row?.username ?? "",
-            email: row?.email ?? user.email ?? "",
+            // The auth session is the source of truth: a confirmed email
+            // change updates it, and the profiles copy catches up separately.
+            email: user.email ?? row?.email ?? "",
             displayName: row?.display_name ?? "",
             avatar: row?.avatar ?? null,
           }}

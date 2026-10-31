@@ -3,7 +3,14 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FONT_SIZES, type EditorSettings } from "@/lib/settings";
-import { deleteAccount, exportAccountData, updateEditorSettings, updateProfile } from "../app/actions";
+import {
+  changeEmail,
+  deleteAccount,
+  exportAccountData,
+  updateEditorSettings,
+  updateProfile,
+  updateUsername,
+} from "../app/actions";
 
 const QUOTA = 25 * 1024 * 1024;
 
@@ -49,6 +56,24 @@ export function SettingsForm({
   const [profileState, setProfileState] = useState<"idle" | "saving" | "saved">("idle");
   const [profileError, setProfileError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // Username changes need the account email typed back. Display name and
+  // picture do not.
+  const [username, setUsername] = useState(profile.username);
+  const [usernamePanel, setUsernamePanel] = useState(false);
+  const [usernameEmail, setUsernameEmail] = useState("");
+  const [usernameBusy, setUsernameBusy] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [usernameSaved, setUsernameSaved] = useState(false);
+
+  // An email change needs the current address confirmed and a new one that
+  // Supabase verifies by sending it a link.
+  const [emailPanel, setEmailPanel] = useState(false);
+  const [emailCurrent, setEmailCurrent] = useState("");
+  const [emailNext, setEmailNext] = useState("");
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailNotice, setEmailNotice] = useState<string | null>(null);
 
   const [prefs, setPrefs] = useState<EditorSettings>(settings);
   const [prefsState, setPrefsState] = useState<"idle" | "saving" | "saved">("idle");
@@ -109,6 +134,43 @@ export function SettingsForm({
     setProfileState("saved");
     router.refresh();
     window.setTimeout(() => setProfileState("idle"), 1500);
+  }
+
+  async function saveUsername() {
+    setUsernameBusy(true);
+    setUsernameError(null);
+    const result = await updateUsername({ username, confirmEmail: usernameEmail });
+    setUsernameBusy(false);
+
+    if (!result.ok) {
+      setUsernameError(result.error);
+      return;
+    }
+
+    setUsernamePanel(false);
+    setUsernameEmail("");
+    setUsernameSaved(true);
+    router.refresh();
+    window.setTimeout(() => setUsernameSaved(false), 1500);
+  }
+
+  async function startEmailChange() {
+    setEmailBusy(true);
+    setEmailError(null);
+    setEmailNotice(null);
+    const result = await changeEmail({ currentEmail: emailCurrent, newEmail: emailNext });
+    setEmailBusy(false);
+
+    if (!result.ok) {
+      setEmailError(result.error);
+      return;
+    }
+
+    setEmailNotice(
+      `Confirmation sent to ${emailNext.trim()}. Open the link there to finish the change.`,
+    );
+    setEmailCurrent("");
+    setEmailNext("");
   }
 
   async function savePrefs(next: EditorSettings) {
@@ -199,16 +261,148 @@ export function SettingsForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={label}>Username</label>
-            <p className="h-9 border border-rule bg-panel/50 px-3 py-2 font-mono text-[12px] text-ink-dim">
-              {profile.username}
-            </p>
+            <label className={label} htmlFor="username">
+              Username
+            </label>
+            <input
+              id="username"
+              value={username}
+              onChange={(event) => {
+                setUsername(event.target.value);
+                setUsernameError(null);
+                setUsernameSaved(false);
+              }}
+              autoComplete="off"
+              spellCheck={false}
+              className={`${field} font-mono`}
+            />
+
+            {usernamePanel ? (
+              <div className="mt-2 border border-rule p-3">
+                <p className="text-[11px] leading-relaxed text-ink-faint">
+                  Username changes need confirmation. Type the email on this account.
+                </p>
+                <input
+                  type="email"
+                  value={usernameEmail}
+                  onChange={(event) => setUsernameEmail(event.target.value)}
+                  placeholder={profile.email}
+                  autoComplete="off"
+                  className={`${field} mt-2`}
+                />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveUsername()}
+                    disabled={usernameBusy || usernameEmail.trim().length === 0}
+                    className={primary}
+                  >
+                    {usernameBusy ? "Saving" : "Confirm and save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUsernamePanel(false);
+                      setUsernameEmail("");
+                      setUsernameError(null);
+                    }}
+                    className={secondary}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setUsernamePanel(true);
+                  setUsernameError(null);
+                }}
+                disabled={username.trim().toLowerCase() === profile.username}
+                className={`${secondary} mt-2`}
+              >
+                Change username
+              </button>
+            )}
+
+            {usernameError ? <p className="mt-2 text-[11px] text-red-300">{usernameError}</p> : null}
+            {usernameSaved ? (
+              <span className="mt-2 inline-block font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
+                saved
+              </span>
+            ) : null}
           </div>
+
           <div>
             <label className={label}>Email</label>
             <p className="h-9 truncate border border-rule bg-panel/50 px-3 py-2 font-mono text-[12px] text-ink-dim">
               {profile.email}
             </p>
+
+            {emailPanel ? (
+              <div className="mt-2 border border-rule p-3">
+                <p className="text-[11px] leading-relaxed text-ink-faint">
+                  Confirm the email on this account, then add the address you want connected. The
+                  new address gets a link, and the change finishes only after it is opened.
+                </p>
+                <input
+                  type="email"
+                  value={emailCurrent}
+                  onChange={(event) => setEmailCurrent(event.target.value)}
+                  placeholder="Current email"
+                  autoComplete="off"
+                  className={`${field} mt-2`}
+                />
+                <input
+                  type="email"
+                  value={emailNext}
+                  onChange={(event) => setEmailNext(event.target.value)}
+                  placeholder="New email"
+                  autoComplete="off"
+                  className={`${field} mt-2`}
+                />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void startEmailChange()}
+                    disabled={emailBusy || emailCurrent.trim() === "" || emailNext.trim() === ""}
+                    className={primary}
+                  >
+                    {emailBusy ? "Sending" : "Send confirmation"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmailPanel(false);
+                      setEmailCurrent("");
+                      setEmailNext("");
+                      setEmailError(null);
+                    }}
+                    className={secondary}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setEmailPanel(true);
+                  setEmailError(null);
+                  setEmailNotice(null);
+                }}
+                className={`${secondary} mt-2`}
+              >
+                Change email
+              </button>
+            )}
+
+            {emailError ? <p className="mt-2 text-[11px] text-red-300">{emailError}</p> : null}
+            {emailNotice ? (
+              <p className="mt-2 text-[11px] leading-relaxed text-ink-dim">{emailNotice}</p>
+            ) : null}
           </div>
         </div>
 

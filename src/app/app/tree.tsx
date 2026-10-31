@@ -79,8 +79,9 @@ export function WorkspaceTree({
   // Enter commits, which unmounts the input and fires blur too.
   const committing = useRef(false);
 
-  // Bulk selection is separate from the open file: you can tick ten rows
-  // without opening any of them.
+  // Bulk selection is a deliberate mode: the toolbar checkbox turns it on,
+  // then clicking rows ticks them instead of opening them.
+  const [selectMode, setSelectMode] = useState(false);
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [projectHistory, setProjectHistory] = useState<{ id: string; name: string } | null>(null);
@@ -201,6 +202,14 @@ export function WorkspaceTree({
     if (/\.(py|java|js|html|css|cpp|h|hpp)$/i.test(value)) return value;
     const ext = DEFAULT_EXT[node.language ?? "python"] ?? "py";
     return `${value}.${ext}`;
+  }
+
+  function setSelecting(next: boolean) {
+    setSelectMode(next);
+    if (!next) {
+      setSelection(new Set());
+      setBulkConfirm(false);
+    }
   }
 
   function toggleSelected(id: string) {
@@ -371,11 +380,12 @@ export function WorkspaceTree({
         else selectFile(row.node.id);
         break;
       case " ":
+        if (!selectMode) break;
         event.preventDefault();
         toggleSelected(row.node.id);
         break;
       case "a":
-        if (event.metaKey || event.ctrlKey) {
+        if (selectMode && (event.metaKey || event.ctrlKey)) {
           event.preventDefault();
           setSelection(new Set(rows.map((entry) => entry.node.id)));
         }
@@ -390,7 +400,8 @@ export function WorkspaceTree({
         break;
       case "Delete":
         event.preventDefault();
-        setTrashTarget(row.node);
+        if (selectMode && selection.size > 0) setBulkConfirm(true);
+        else setTrashTarget(row.node);
         break;
       case "Home":
         event.preventDefault();
@@ -411,6 +422,18 @@ export function WorkspaceTree({
   return (
     <>
       <div className="flex h-9 items-center gap-1 border-b border-rule px-2">
+        <label
+          className="mr-1 flex h-6 cursor-pointer items-center gap-1.5 border border-rule px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-dim select-none hover:border-rule-strong hover:text-ink"
+          title="Select items to delete"
+        >
+          <input
+            type="checkbox"
+            checked={selectMode}
+            onChange={(event) => setSelecting(event.target.checked)}
+            className="h-3 w-3 accent-[var(--color-accent)]"
+          />
+          select
+        </label>
         <button
           type="button"
           onClick={() =>
@@ -438,24 +461,25 @@ export function WorkspaceTree({
         </button>
       </div>
 
-      {selection.size > 0 ? (
+      {selectMode ? (
         <div className="flex h-8 items-center gap-3 border-b border-rule bg-[#111614] px-3">
           <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-dim">
-            {selection.size} selected
+            {selection.size === 0 ? "nothing selected" : `${selection.size} selected`}
           </span>
           <button
             type="button"
             onClick={() => setBulkConfirm(true)}
-            className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent hover:text-ink"
+            disabled={selection.size === 0}
+            className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent hover:text-ink disabled:opacity-40"
           >
-            trash
+            delete
           </button>
           <button
             type="button"
-            onClick={() => setSelection(new Set())}
+            onClick={() => setSelecting(false)}
             className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-ink"
           >
-            clear
+            cancel
           </button>
         </div>
       ) : null}
@@ -505,18 +529,14 @@ export function WorkspaceTree({
                   if (justDragged.current) return;
                   setFocusIndex(index);
 
-                  if (event.shiftKey) {
-                    selectRange(index);
-                    return;
-                  }
-                  if (event.metaKey || event.ctrlKey) {
-                    toggleSelected(row.node.id);
+                  if (selectMode) {
+                    if (event.shiftKey) selectRange(index);
+                    else toggleSelected(row.node.id);
                     anchorRef.current = index;
                     return;
                   }
 
                   anchorRef.current = index;
-                  setSelection(new Set([row.node.id]));
                   if (isFolder) toggle(row.node.id);
                   else selectFile(row.node.id);
                 }}
@@ -525,7 +545,9 @@ export function WorkspaceTree({
                   setFocusIndex(index);
                   setMenu({ id: row.node.id, kind: row.node.type, name: row.node.name });
                 }}
-                draggable={row.node.type === "file" || row.node.parentId !== null}
+                draggable={
+                  !selectMode && (row.node.type === "file" || row.node.parentId !== null)
+                }
                 onDragStart={(event) => {
                   justDragged.current = true;
                   event.dataTransfer.setData(
@@ -582,6 +604,17 @@ export function WorkspaceTree({
                 ].join(" ")}
                 style={{ paddingLeft: 8 + row.depth * 14 }}
               >
+                {selectMode ? (
+                  <input
+                    type="checkbox"
+                    checked={selection.has(row.node.id)}
+                    onChange={() => toggleSelected(row.node.id)}
+                    onClick={(event) => event.stopPropagation()}
+                    aria-label={`Select ${row.node.name}`}
+                    className="h-3 w-3 shrink-0 accent-[var(--color-accent)]"
+                  />
+                ) : null}
+
                 <span
                   aria-hidden="true"
                   className="w-3 shrink-0 text-center font-mono text-[9px] text-ink-faint"
@@ -720,29 +753,6 @@ export function WorkspaceTree({
         </div>
       )}
 
-      <div
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDropTarget({ id: "root", position: "into" });
-        }}
-        onDragLeave={() => setDropTarget(null)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDropTarget(null);
-          const raw = event.dataTransfer.getData("application/x-nested");
-          if (!raw) return;
-          void handleDrop(JSON.parse(raw), null);
-        }}
-        className={
-          "min-h-14 border-t border-dashed " +
-          (dropTarget?.id === "root" ? "border-accent bg-[#141a17]" : "border-rule")
-        }
-      >
-        <p className="px-3 py-6 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
-          drop here to move to the top level
-        </p>
-      </div>
-
       {newFileTarget ? (
         <NewFileDialog
           folderId={newFileTarget.id}
@@ -800,9 +810,9 @@ export function WorkspaceTree({
 
       {bulkConfirm ? (
         <ConfirmDialog
-          title="Move to trash"
-          body={`${selection.size} item${selection.size === 1 ? "" : "s"} go to the trash. You can restore them for 30 days.`}
-          confirmLabel="Move to trash"
+          title="Delete items"
+          body={`Delete ${selection.size} item${selection.size === 1 ? "" : "s"}? They go to the trash, where you can restore them for 30 days.`}
+          confirmLabel="Delete"
           onClose={() => setBulkConfirm(false)}
           onConfirm={trashSelection}
         />
