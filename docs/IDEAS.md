@@ -138,6 +138,33 @@ these tools; it is to win the twenty minutes before them.
 5. **Search, eventually.** It is the one missing capability that makes people
    leave for a tool that has it.
 
+## More ideas
+
+Unsorted, cheap to expensive. The first six are the ones I would actually pick.
+
+| Idea | What it is | Cost |
+|---|---|---|
+| **Open tabs** | A row of recently opened files above the editor, with close buttons and the dirty marker. Today opening a second file replaces the first, which makes comparing a note against code impossible. | M |
+| **Split view** | Two files side by side, each with its own editor and save button. The natural end point of tabs, and the one thing a browser can do that a terminal cannot. | L |
+| **Breadcrumb in the header** | `project / folder / file` above the editor, each segment clickable to reveal it in the tree. Cheap orientation for deep trees. | S |
+| **Unsaved guard** | A dirty marker in the tab title plus a `beforeunload` warning and a palette entry to jump to the dirty file. Drafts exist, but nothing tells you one is waiting. | S |
+| **Storage breakdown** | In Settings: biggest files, biggest version histories, total per project, with one-click prune of old versions. The 25 MB cap is invisible until it bites. | M |
+| **Duplicate detection** | Group files by `content_hash` and offer to trash the extra copies. Storage is the real constraint on the free tier. | S |
+| **Bulk move** | Multi-select currently only deletes. Add "move to folder" with the same picker as the tree. | M |
+| **Drag out / drop in** | Drag a file row to the desktop to download it; drop a file onto a folder to import it. Removes the copy-paste step. | M |
+| **Inline version scrubber** | Drag through a file's versions in the header, like the landing page demo. Faster than opening the versions dialog. | M |
+| **Cursor and scroll memory** | Reopening a file returns to the last cursor position and scroll offset, stored per file. | S |
+| **Markdown outline** | A panel listing headings from a markdown file, click to jump. No rendering, just structure. | S |
+| **Line deep links** | `/app?f=<id>&line=42` scrolls and highlights; a "copy link" action on the current cursor line. | S |
+| **Undo toast** | After a delete, a short "moved to trash · undo" notice. The trash exists, but the moment of regret is not met. | S |
+| **Fold / unfold all** | One action to collapse or expand every folder, or one project. | S |
+| **New file inline** | `Ctrl+Alt+N` creates a file in the focused folder with an inline name input, no dialog. | S |
+| **Tree filter** | A search box above the tree that filters visible rows by name, independent of the palette. | S |
+| **Run history** | Keep the last few outputs per file so a run does not disappear when you edit. | M |
+| **Project templates** | On creating a project, choose a shape: empty, notes, snippets, coursework. | S |
+| **File info panel** | Kind, language, size, revision count, created, project, notes in one place. | S |
+| **Print / plain export** | Send a markdown file to the browser print dialog or download it individually. | S |
+
 ## Explicitly not doing
 
 - Markdown rendering as a default view — the SPEC rules it out; a checklist kind

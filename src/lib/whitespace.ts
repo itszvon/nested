@@ -1,11 +1,16 @@
 /**
  * Blank-line tidying, per language.
  *
- * The gentle pass keeps the single blank line people use to separate
- * functions, classes, and sections, and only removes the noise: runs of blank
- * lines, blanks directly after a block opens, and blanks directly before a
- * block closes. Brace languages and Python differ in what "opens" means, HTML
- * has no block delimiters at all, so it only gets the collapse.
+ * Two jobs, in one pass:
+ *
+ * 1. Remove noise: runs of blank lines, blanks right after a block opens, and
+ *    blanks right before a block closes.
+ * 2. Put back the blank lines that carry meaning: between Python definitions and
+ *    between brace-language blocks. Without this, "tidy" did nothing after
+ *    "flat" had already removed every blank line.
+ *
+ * Only structure is inferred. Nothing here can reformat code or guess intent
+ * beyond block boundaries.
  */
 
 const BRACE_LANGUAGES = new Set([
@@ -17,6 +22,9 @@ const BRACE_LANGUAGES = new Set([
   "go",
   "rust",
 ]);
+
+const PY_SECTION = /^(?:async\s+)?(?:def|class)\s/;
+const CHAIN = /^(?:else|catch|finally|while)\b/;
 
 function indentWidth(line: string) {
   const match = line.match(/^[ \t]*/);
@@ -35,6 +43,50 @@ function closesBlock(next: string, language: string | null) {
   return false;
 }
 
+/**
+ * Should a blank line go between these two non-blank neighbours? Only at real
+ * section boundaries, never inside a block or a continuation.
+ */
+function wantsBlankBetween(previous: string, current: string, language: string | null): boolean {
+  const prev = previous.trim();
+  const cur = current.trim();
+  if (!prev || !cur) return false;
+
+  if (language === "python") {
+    // Decorator chains stay glued to their def.
+    if (prev.startsWith("@")) return false;
+    // A comment above a definition belongs to it.
+    if (prev.startsWith("#")) return false;
+
+    const prevIndent = indentWidth(previous);
+    const curIndent = indentWidth(current);
+
+    if (PY_SECTION.test(cur) || cur.startsWith("@")) {
+      // Leaving a body back to column zero always earns a blank line.
+      if (prevIndent > curIndent) return true;
+      // A nested definition follows code at the same indent.
+      if (prevIndent === curIndent) return true;
+      return false;
+    }
+
+    return false;
+  }
+
+  if (language && BRACE_LANGUAGES.has(language)) {
+    // "};" and "}));" still end a block.
+    const prevBlock = prev.replace(/;\s*$/, "").replace(/\)+$/, "");
+    if (!prevBlock.endsWith("}")) return false;
+    if (cur.startsWith("}")) return false;
+    if (CHAIN.test(cur)) return false;
+    // Continuations, closers and chain calls are still the same statement.
+    // CSS is the exception: a selector legitimately starts with a dot.
+    if (/^[)\].,;]/.test(cur) && !(language === "css" && cur.startsWith("."))) return false;
+    return true;
+  }
+
+  return false;
+}
+
 export function tidyBlankLines(text: string, language: string | null): string {
   const lines = text.split("\n");
   const out: string[] = [];
@@ -43,6 +95,16 @@ export function tidyBlankLines(text: string, language: string | null): string {
     const line = lines[i];
 
     if (line.trim() !== "") {
+      const previous = out.length > 0 ? out[out.length - 1] : null;
+
+      if (
+        previous !== null &&
+        previous.trim() !== "" &&
+        wantsBlankBetween(previous, line, language)
+      ) {
+        out.push("");
+      }
+
       out.push(line);
       continue;
     }
