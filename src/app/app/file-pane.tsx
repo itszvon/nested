@@ -15,6 +15,7 @@ import {
 } from "@/lib/buffers";
 import { formatCode, FORMATTABLE } from "@/lib/format";
 import { languageLabel, languageStatus } from "@/lib/languages";
+import { RUNNER_ENABLED } from "@/lib/site";
 import { removeBlankLines, tidyBlankLines } from "@/lib/whitespace";
 import { getFileSnapshot, saveFile, saveProject, type SaveProjectItem } from "./actions";
 import { SaveProjectDialog, VersionHistoryDialog } from "./dialogs";
@@ -54,6 +55,7 @@ export function FilePane({
   const [diagnostics, setDiagnostics] = useState(0);
   const [formatting, setFormatting] = useState(false);
   const [conflict, setConflict] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // "Version history" arrives as ?versions=1 from the tree menu. Consume it and
   // clean the URL, so the same menu item works again after closing.
@@ -156,7 +158,7 @@ export function FilePane({
         event.preventDefault();
         void save();
       }
-      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      if (RUNNER_ENABLED && (event.metaKey || event.ctrlKey) && event.key === "Enter") {
         event.preventDefault();
         setRunner({ code: textRef.current, runId: Date.now() });
       }
@@ -419,7 +421,24 @@ export function FilePane({
             </button>
           ) : null}
 
-          {file.kind === "code" ? (
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(textRef.current);
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 1200);
+              } catch {
+                setError("The browser refused clipboard access.");
+              }
+            }}
+            title="Copy this file to the clipboard"
+            className="h-7 border border-transparent px-2 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule hover:text-ink"
+          >
+            {copied ? "copied" : "copy"}
+          </button>
+
+          {file.kind === "code" && RUNNER_ENABLED ? (
             <button
               type="button"
               onClick={() => setRunner({ code: textRef.current, runId: Date.now() })}

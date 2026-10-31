@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackToTop } from "./back-to-top";
 import { connection } from "next/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getCurrentUser } from "@/lib/supabase/server";
@@ -9,6 +10,33 @@ export const metadata: Metadata = {
   description:
     "Notes and code in one tree. Google sign-in, a code editor for ten languages, and a saved version behind every save.",
 };
+
+const FAQ = [
+  {
+    q: "Is it free?",
+    a: "Yes. It runs on free database and hosting tiers, which is why the limits above exist. There is no paid plan.",
+  },
+  {
+    q: "Can anyone else see my files?",
+    a: "No. Every row is tied to your account in the database, and there is no sharing, public link, or guest mode anywhere in the product.",
+  },
+  {
+    q: "Which languages actually run?",
+    a: "JavaScript, TypeScript, Python and SQL run in your browser. HTML and CSS render a preview. Java, Go, Rust, C++ and Bash are edited and checked but need their own tool.",
+  },
+  {
+    q: "What happens when I delete something?",
+    a: "It moves to the trash, where it stays for thirty days with its version history intact. After that it is removed permanently.",
+  },
+  {
+    q: "What if I close the tab with unsaved work?",
+    a: "Unsaved edits are copied into this browser every half second. Reopening the file offers them back. Nothing is saved to the server until you press Save File.",
+  },
+  {
+    q: "Can I use it on a phone?",
+    a: "It works, with the file tree as a drawer. Writing long files on a phone keyboard is not pleasant, but the editor and saving both function.",
+  },
+];
 
 const LIMITS = [
   ["File size", "2 MB"],
@@ -135,7 +163,7 @@ export default async function LandingPage() {
     isSupabaseConfigured() ? Boolean(await getCurrentUser()) : false;
 
   return (
-    <div className="min-h-dvh">
+    <div id="top" className="min-h-dvh">
       <header className="border-b border-rule">
         <div className="mx-auto flex h-14 max-w-6xl items-center px-6">
           <span className="font-mono text-[12px] uppercase tracking-[0.18em] text-ink">
@@ -221,6 +249,27 @@ export default async function LandingPage() {
           </div>
         </section>
 
+
+        <section id="faq" className="border-t border-rule">
+          <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 lg:grid-cols-[1fr_1.4fr]">
+            <div>
+              <h2 className="text-[22px] font-medium tracking-[-0.01em] text-ink">Questions</h2>
+              <p className="mt-3 max-w-sm text-[13px] leading-relaxed text-ink-faint">
+                Answered about this build, not about a roadmap.
+              </p>
+            </div>
+
+            <dl className="divide-y divide-rule border-y border-rule">
+              {FAQ.map((entry) => (
+                <div key={entry.q} className="py-5">
+                  <dt className="text-[14px] text-ink">{entry.q}</dt>
+                  <dd className="mt-2 text-[13px] leading-relaxed text-ink-dim">{entry.a}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
         <section id="limits" className="mx-auto max-w-6xl px-6 py-20">
           <div className="grid gap-12 lg:grid-cols-[1fr_1.2fr]">
             <div>
@@ -287,9 +336,29 @@ export default async function LandingPage() {
             >
               Terms
             </Link>
+            <Link
+              href="/security"
+              className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:text-ink"
+            >
+              Security
+            </Link>
+            <Link
+              href="/copyright"
+              className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:text-ink"
+            >
+              Copyright
+            </Link>
+            <Link
+              href="/dmca"
+              className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:text-ink"
+            >
+              DMCA
+            </Link>
           </nav>
         </div>
       </footer>
+
+      <BackToTop />
     </div>
   );
 }

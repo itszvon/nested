@@ -62,10 +62,10 @@ export default function LoginPage({
             <p className="mt-4 text-xs leading-relaxed text-neutral-500">
               Google is the only way in. Your files are private to your account.
             </p>
-            <p className="mt-3 text-[11px] text-neutral-600">
-              <a className="underline hover:text-neutral-400" href="/privacy">Privacy</a>
-              {" · "}
-              <a className="underline hover:text-neutral-400" href="/terms">Terms</a>
+            <p className="mt-3 text-[11px] leading-relaxed text-neutral-600">
+              By continuing you agree to the{" "}
+              <a className="underline hover:text-neutral-400" href="/terms">Terms</a> and the{" "}
+              <a className="underline hover:text-neutral-400" href="/privacy">Privacy policy</a>.
             </p>
           </form>
         ) : (

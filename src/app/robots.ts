@@ -13,6 +13,9 @@ export default function robots(): MetadataRoute.Robots {
         allow: "/home",
         disallow: ["/app", "/login", "/auth", "/api", "/"],
       },
+      // Model crawlers may read the landing page and the policy pages, and
+      // nothing else. This is a request, not access control.
+      { userAgent: ["GPTBot", "ClaudeBot", "Google-Extended", "CCBot"], allow: "/", disallow: ["/app", "/login", "/auth", "/api"] },
     ],
   };
 }
