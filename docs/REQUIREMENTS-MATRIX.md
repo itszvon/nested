@@ -9,8 +9,8 @@ Status vocabulary: PASS, OPEN, BLOCKED, NA. Every NA carries its reason.
 |---|---|
 | PASS | 62 |
 | OPEN | 12 |
-| BLOCKED | 16 |
-| NA | 55 |
+| BLOCKED | 14 |
+| NA | 57 |
 | **Total** | **145** |
 
 ## Duplicates identified
@@ -23,7 +23,7 @@ Status vocabulary: PASS, OPEN, BLOCKED, NA. Every NA carries its reason.
 
 ## Conflicts identified
 
-- Dark/light toggle and system-preference support contradict the product decision recorded in PRODUCT.md, SPEC section 10 and DESIGN.md: dark only, no toggle. Implementing it would reverse a decision the owner made twice. Not implemented; awaiting approval.
+- Dark/light toggle and system-preference support contradicted the product decision recorded in PRODUCT.md, SPEC section 10 and DESIGN.md. Resolved on 31 October 2026: the owner confirmed dark only, and both rows are now NA by decision rather than by omission.
 - Em dash ban applies to existing copy that used them (dialog titles, page titles). All were replaced with middots, so the conflict is resolved rather than outstanding.
 - Remove localhost URLs conflicts with the sitemap needing a base URL before deployment; the fallback is localhost by necessity. Resolved at deploy by setting NEXT_PUBLIC_SITE_URL.
 - Status page and floating contact button conflict with feature discipline in the first checklist (no features added merely to satisfy an item). Both marked NA with reasons.
@@ -63,8 +63,8 @@ Status vocabulary: PASS, OPEN, BLOCKED, NA. Every NA carries its reason.
 | Requirement | Status | Evidence or reason |
 |---|---|---|
 | Dark mode as default | PASS | Default and only theme. |
-| Functional dark/light toggle | BLOCKED | CONFLICT with the product decision. Requires approval; see Conflicts 1. |
-| Respect system appearance preference | BLOCKED | Same conflict as the toggle. |
+| Functional dark/light toggle | NA | Owner confirmed dark only on 31 October 2026. A toggle would reverse the decision recorded in PRODUCT.md, SPEC section 10 and DESIGN.md. |
+| Respect system appearance preference | NA | Same decision: no light theme exists to switch to. |
 | Cookie banner when legally required | NA | One session cookie, no analytics, no advertising. No consent requirement applies, so a banner would be noise. |
 | FAQ section where appropriate | PASS | #faq on /home, six questions with answers matching the build. |
 | Scroll progress indicator where appropriate | NA | No page is long enough for one to carry information; the back-to-top control covers the only long page. |
@@ -247,5 +247,4 @@ Status vocabulary: PASS, OPEN, BLOCKED, NA. Every NA carries its reason.
 
 ## Awaiting a decision
 
-1. Dark/light toggle: add it (reversing the dark-only decision), or keep dark only and mark these two rows NA.
-2. Support address on the legal pages is the operator's personal Gmail. Confirm or replace.
+1. Support address on the legal pages is the operator's personal Gmail. Confirm or replace before launch.
