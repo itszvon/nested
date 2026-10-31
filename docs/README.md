@@ -13,7 +13,8 @@ and `AGENTS.md` (rewritten by `next dev`).
 | [PRODUCTION-READINESS.md](PRODUCTION-READINESS.md) | Launch checklist and the honest state of operations. |
 | [adding-a-language.md](adding-a-language.md) | How to add a language to the editor. |
 | [surface-brief-app.md](surface-brief-app.md) | Surface brief for the app shell. |
-| [IDEAS.md](IDEAS.md) | Candidate features, deliberately not built yet. |
+| [IDEAS.md](IDEAS.md) | Candidate features, deliberately not built yet, and the competitive reasoning. |
+| [ROADMAP.md](ROADMAP.md) | Prioritised checklist of what to build next, with effort sizes. |
 
 `IMPORTANT.md` also sits in this folder but is gitignored: it holds operator
 credentials and stays on the machine only.
