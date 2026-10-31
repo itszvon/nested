@@ -28,6 +28,14 @@ import {
   syntaxHighlighting,
 } from "@codemirror/language";
 import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
+import {
+  diagnosticCount,
+  lintGutter,
+  linter,
+  type Diagnostic,
+} from "@codemirror/lint";
+import { syntaxTree } from "@codemirror/language";
+import { heuristicFindings } from "@/lib/checks";
 
 const ledgerTheme = EditorView.theme(
   {
@@ -103,23 +111,61 @@ async function loadLanguage(language: string | null): Promise<Extension[]> {
   }
 }
 
+/**
+ * Diagnostics come from two sources: the parser's own error nodes, which are
+ * real syntax errors for every supported language, and a few narrow
+ * heuristics. Nothing here claims to type-check.
+ */
+function buildLinter(language: string | null) {
+  return linter(
+    (view) => {
+      const text = view.state.doc.toString();
+      const diagnostics: Diagnostic[] = [];
+
+      syntaxTree(view.state).iterate({
+        enter(node) {
+          if (node.type.isError) {
+            diagnostics.push({
+              from: node.from,
+              to: Math.max(node.to, node.from + 1),
+              severity: "error",
+              message: "Syntax error",
+            });
+          }
+        },
+      });
+
+      for (const finding of heuristicFindings(text, language)) {
+        diagnostics.push(finding);
+      }
+
+      return diagnostics;
+    },
+    { delay: 400 },
+  );
+}
+
 export function CodeEditor({
   kind,
   language,
   initialText,
   onChange,
   onView,
+  onDiagnostics,
 }: {
   kind: "markdown" | "code";
   language: string | null;
   initialText: string;
   onChange: (text: string) => void;
   onView: (view: EditorView | null) => void;
-}) {
+  onDiagnostics?: (count: number) => void;
+}) {  
   const host = useRef<HTMLDivElement>(null);
   const languageSlot = useRef(new Compartment());
   const changeHandler = useRef(onChange);
   changeHandler.current = onChange;
+  const diagnosticsHandler = useRef(onDiagnostics);
+  diagnosticsHandler.current = onDiagnostics;
 
   useEffect(() => {
     if (!host.current) return;
@@ -156,9 +202,13 @@ export function CodeEditor({
         ...(isCode
           ? [lineNumbers(), highlightActiveLineGutter(), foldGutter()]
           : [EditorView.lineWrapping]),
+        ...(isCode ? [lintGutter(), buildLinter(language)] : []),
         languageSlot.current.of([]),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) changeHandler.current(update.state.doc.toString());
+          if (diagnosticsHandler.current) {
+            diagnosticsHandler.current(diagnosticCount(update.state));
+          }
         }),
       ],
     });

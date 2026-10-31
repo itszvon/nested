@@ -16,6 +16,8 @@ import {
 import { removeBlankLines, tidyBlankLines } from "@/lib/whitespace";
 import { saveFile, saveProject, type SaveProjectItem } from "./actions";
 import { SaveProjectDialog, VersionHistoryDialog } from "./dialogs";
+import { RunnerPanel } from "./runner";
+import { openLintPanel } from "@codemirror/lint";
 
 const CodeEditor = dynamic(() => import("./editor").then((module) => module.CodeEditor), {
   ssr: false,
@@ -46,6 +48,8 @@ export function FilePane({
   const cached = getBuffer(file.id);
   const [versionsOpen, setVersionsOpen] = useState(openVersions);
   const [saveProjectOpen, setSaveProjectOpen] = useState(false);
+  const [runner, setRunner] = useState<{ code: string; runId: number } | null>(null);
+  const [diagnostics, setDiagnostics] = useState(0);
 
   // "Version history" arrives as ?versions=1 from the tree menu. Consume it and
   // clean the URL, so the same menu item works again after closing.
@@ -145,6 +149,10 @@ export function FilePane({
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         void save();
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        setRunner({ code: textRef.current, runId: Date.now() });
       }
     }
     window.addEventListener("keydown", onKey);
@@ -315,6 +323,30 @@ export function FilePane({
             </>
           ) : null}
 
+          {file.kind === "code" ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (viewRef.current) openLintPanel(viewRef.current);
+              }}
+              title="Show problems (syntax errors and a few checks)"
+              className="h-7 border border-transparent px-2 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule hover:text-ink"
+            >
+              checks{diagnostics > 0 ? ` ${diagnostics}` : ""}
+            </button>
+          ) : null}
+
+          {file.kind === "code" ? (
+            <button
+              type="button"
+              onClick={() => setRunner({ code: textRef.current, runId: Date.now() })}
+              title="Run (Ctrl/Cmd+Enter)"
+              className="h-7 border border-transparent px-2 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule hover:text-ink"
+            >
+              run
+            </button>
+          ) : null}
+
           <button
             type="button"
             onClick={() => setVersionsOpen(true)}
@@ -418,8 +450,19 @@ export function FilePane({
           onView={(view) => {
             viewRef.current = view;
           }}
+          onDiagnostics={setDiagnostics}
         />
       </div>
+
+      {runner ? (
+        <RunnerPanel
+          key={runner.runId}
+          language={file.language}
+          code={runner.code}
+          runId={runner.runId}
+          onClose={() => setRunner(null)}
+        />
+      ) : null}
     </div>
   );
 }
