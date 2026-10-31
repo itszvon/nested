@@ -5,8 +5,13 @@ import {
   createFile,
   createFolder,
   deleteVersion,
+  deleteForever,
+  emptyTrash,
   listSnapshots,
+  listTrash,
   listVersions,
+  restoreFromTrash,
+  type TrashItem,
   restoreProjectSnapshot,
   restoreVersion,
   type FileKind,
@@ -527,6 +532,181 @@ export function ProjectHistoryDialog({
         >
           Close
         </button>
+      </div>
+    </Modal>
+  );
+}
+
+export function TrashDialog({
+  onClose,
+  onChanged,
+}: {
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [items, setItems] = useState<TrashItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [confirmEmpty, setConfirmEmpty] = useState(false);
+
+  const load = useCallback(async () => {
+    const result = await listTrash();
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setItems(result.items);
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function restore(item: TrashItem) {
+    setBusyId(item.id);
+    const result = await restoreFromTrash(item.kind, item.id);
+    setBusyId(null);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    onChanged();
+    await load();
+  }
+
+  async function purge(item: TrashItem) {
+    setBusyId(item.id);
+    const result = await deleteForever(item.kind, item.id);
+    setBusyId(null);
+    setConfirmId(null);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    onChanged();
+    await load();
+  }
+
+  async function purgeAll() {
+    setConfirmEmpty(false);
+    const result = await emptyTrash();
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    onChanged();
+    await load();
+  }
+
+  return (
+    <Modal title="Trash" onClose={onClose}>
+      {error ? (
+        <p className="border-b border-rule bg-accent/10 px-4 py-2 text-[11px] text-ink">{error}</p>
+      ) : null}
+
+      <div className="max-h-[46vh] overflow-y-auto">
+        {items !== null && items.length === 0 ? (
+          <p className="px-4 py-6 text-[12px] leading-relaxed text-ink-faint">
+            Trash is empty. Deleted files and folders wait here for thirty days.
+          </p>
+        ) : null}
+
+        {items?.map((item) => {
+          const purging = confirmId === item.id;
+          return (
+            <div
+              key={item.id}
+              className="flex items-center gap-3 border-b border-rule px-4 py-2 text-[11px]"
+            >
+              <span className="w-[34px] shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
+                {item.kind}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[12px] text-ink-dim">{item.name}</span>
+              <span className="shrink-0 font-mono text-[10px] text-ink-faint">
+                {item.days_left}d left
+              </span>
+
+              {purging ? (
+                <span className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void purge(item)}
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent"
+                  >
+                    delete forever
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmId(null)}
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint"
+                  >
+                    no
+                  </button>
+                </span>
+              ) : (
+                <span className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={busyId === item.id}
+                    onClick={() => void restore(item)}
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-dim hover:text-ink disabled:opacity-40"
+                  >
+                    restore
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyId === item.id}
+                    onClick={() => setConfirmId(item.id)}
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-accent disabled:opacity-40"
+                  >
+                    delete
+                  </button>
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-3 px-4 py-2">
+        {confirmEmpty ? (
+          <>
+            <span className="text-[11px] text-ink-dim">Delete everything in the trash?</span>
+            <button
+              type="button"
+              onClick={() => void purgeAll()}
+              className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-accent"
+            >
+              yes, empty
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmEmpty(false)}
+              className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint"
+            >
+              no
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              disabled={!items || items.length === 0}
+              onClick={() => setConfirmEmpty(true)}
+              className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-accent disabled:opacity-40"
+            >
+              empty trash
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="ml-auto h-7 border border-rule px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-dim"
+            >
+              Close
+            </button>
+          </>
+        )}
       </div>
     </Modal>
   );

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
+import { isSupabaseConfigured } from "@/lib/env";
+import { getCurrentUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Nested · notes and code in folders inside folders",
@@ -122,7 +125,15 @@ function ProductMock() {
   );
 }
 
-export default function LandingPage() {
+// The page reads the session to label its buttons, so it renders per request.
+export const instant = false;
+
+export default async function LandingPage() {
+  await connection();
+
+  const signedIn =
+    isSupabaseConfigured() ? Boolean(await getCurrentUser()) : false;
+
   return (
     <div className="min-h-dvh">
       <header className="border-b border-rule">
@@ -144,10 +155,10 @@ export default function LandingPage() {
               Limits
             </a>
             <Link
-              href="/login"
+              href={signedIn ? "/app" : "/login"}
               className="border border-accent bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white"
             >
-              Sign in
+              {signedIn ? "Open app" : "Sign in"}
             </Link>
           </nav>
         </div>
@@ -175,10 +186,10 @@ export default function LandingPage() {
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <Link
-              href="/login"
+              href={signedIn ? "/app" : "/login"}
               className="border border-accent bg-accent px-5 py-3 font-mono text-[10px] uppercase tracking-[0.14em] text-white"
             >
-              Continue with Google
+              {signedIn ? "Open the app" : "Continue with Google"}
             </Link>
             <a
               href="#how"
@@ -188,9 +199,6 @@ export default function LandingPage() {
             </a>
           </div>
 
-          <p className="mt-4 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
-            Google is the only way in. No sharing, no public links, no guests.
-          </p>
 
           <div className="mt-16">
             <ProductMock />
@@ -252,10 +260,10 @@ export default function LandingPage() {
               </p>
             </div>
             <Link
-              href="/login"
+              href={signedIn ? "/app" : "/login"}
               className="border border-accent bg-accent px-5 py-3 font-mono text-[10px] uppercase tracking-[0.14em] text-white sm:ml-auto"
             >
-              Continue with Google
+              {signedIn ? "Open the app" : "Continue with Google"}
             </Link>
           </div>
         </section>

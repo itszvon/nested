@@ -299,6 +299,111 @@ export async function restoreProjectSnapshot(
   return { ok: true, changed: (data as number) ?? 0 };
 }
 
+export type TrashItem = {
+  kind: "folder" | "file";
+  id: string;
+  name: string;
+  deleted_at: string;
+  byte_size: number;
+  days_left: number;
+};
+
+const TRASH_DAYS = 30;
+
+/**
+ * Top-level trashed items only. Children are carried inside their parent, so
+ * the list stays short and restoring a folder brings its subtree with it.
+ */
+export async function listTrash(): Promise<
+  { ok: true; items: TrashItem[] } | { ok: false; error: string }
+> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const [folders, files] = await Promise.all([
+    supabase
+      .from("folders")
+      .select("id, name, deleted_at, trash_root_id")
+      .not("deleted_at", "is", null),
+    supabase
+      .from("files")
+      .select("id, name, deleted_at, trash_root_id, byte_size")
+      .not("deleted_at", "is", null),
+  ]);
+
+  if (folders.error) return { ok: false, error: explain(folders.error.message) };
+  if (files.error) return { ok: false, error: explain(files.error.message) };
+
+  const now = Date.now();
+  const daysLeft = (iso: string) =>
+    Math.max(0, Math.ceil((new Date(iso).getTime() + TRASH_DAYS * 86400000 - now) / 86400000));
+
+  const items: TrashItem[] = [
+    ...(folders.data ?? [])
+      .filter((row) => row.trash_root_id === row.id)
+      .map((row) => ({
+        kind: "folder" as const,
+        id: row.id,
+        name: row.name,
+        deleted_at: row.deleted_at as string,
+        byte_size: 0,
+        days_left: daysLeft(row.deleted_at as string),
+      })),
+    ...(files.data ?? [])
+      .filter((row) => row.trash_root_id === row.id)
+      .map((row) => ({
+        kind: "file" as const,
+        id: row.id,
+        name: row.name,
+        deleted_at: row.deleted_at as string,
+        byte_size: row.byte_size ?? 0,
+        days_left: daysLeft(row.deleted_at as string),
+      })),
+  ].sort((a, b) => b.deleted_at.localeCompare(a.deleted_at));
+
+  return { ok: true, items };
+}
+
+export async function restoreFromTrash(
+  kind: "folder" | "file",
+  id: string,
+): Promise<ActionResult> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc("restore_node", { p_kind: kind, p_id: id });
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
+  return { ok: true };
+}
+
+export async function deleteForever(
+  kind: "folder" | "file",
+  id: string,
+): Promise<ActionResult> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const table = kind === "folder" ? "folders" : "files";
+  const { error } = await supabase.from(table).delete().eq("id", id);
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
+  return { ok: true };
+}
+
+export async function emptyTrash(): Promise<{ ok: true; removed: number } | { ok: false; error: string }> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("empty_trash");
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
+  return { ok: true, removed: (data as number) ?? 0 };
+}
+
 export async function trashNode(
   kind: "folder" | "file",
   id: string,

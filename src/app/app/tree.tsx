@@ -18,6 +18,7 @@ import {
   NewFileDialog,
   NewFolderDialog,
   ProjectHistoryDialog,
+  TrashDialog,
 } from "./dialogs";
 
 const EXPANDED_KEY = "nested.expanded";
@@ -82,6 +83,7 @@ export function WorkspaceTree({
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [projectHistory, setProjectHistory] = useState<{ id: string; name: string } | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
   const anchorRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -374,9 +376,13 @@ export function WorkspaceTree({
         >
           + File
         </button>
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
-          {targetFolder ? targetFolder.name : "root"}
-        </span>
+        <button
+          type="button"
+          onClick={() => setTrashOpen(true)}
+          className="ml-auto h-6 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint hover:text-accent"
+        >
+          trash
+        </button>
       </div>
 
       {selection.size > 0 ? (
@@ -635,6 +641,13 @@ export function WorkspaceTree({
             setExpanded((current) => new Set(current).add(folderId));
             router.refresh();
           }}
+        />
+      ) : null}
+
+      {trashOpen ? (
+        <TrashDialog
+          onClose={() => setTrashOpen(false)}
+          onChanged={() => router.refresh()}
         />
       ) : null}
 
