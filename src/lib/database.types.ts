@@ -39,6 +39,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      file_extensions: {
+        Row: {
+          extension: string
+          language: Database["public"]["Enums"]["file_language"]
+        }
+        Insert: {
+          extension: string
+          language: Database["public"]["Enums"]["file_language"]
+        }
+        Update: {
+          extension?: string
+          language?: Database["public"]["Enums"]["file_language"]
+        }
+        Relationships: []
+      }
       files: {
         Row: {
           byte_size: number
@@ -54,6 +69,7 @@ export type Database = {
           owner_id: string
           project_id: string | null
           revision: number
+          sort_order: number
           trash_root_id: string | null
           updated_at: string
         }
@@ -71,6 +87,7 @@ export type Database = {
           owner_id: string
           project_id?: string | null
           revision?: number
+          sort_order?: number
           trash_root_id?: string | null
           updated_at?: string
         }
@@ -88,6 +105,7 @@ export type Database = {
           owner_id?: string
           project_id?: string | null
           revision?: number
+          sort_order?: number
           trash_root_id?: string | null
           updated_at?: string
         }
@@ -316,10 +334,15 @@ export type Database = {
       }
       project_of_folder: { Args: { p_folder: string }; Returns: string }
       purge_trash: { Args: { p_days?: number }; Returns: number }
+      reorder_nodes: {
+        Args: { p_ids: string[]; p_kind: string; p_parent: string }
+        Returns: undefined
+      }
       restore_node: {
         Args: { p_id: string; p_kind: string }
         Returns: undefined
       }
+      restore_project: { Args: { p_snapshot_id: string }; Returns: number }
       restore_version: { Args: { p_version_id: string }; Returns: string }
       save_file: {
         Args: {
@@ -344,7 +367,18 @@ export type Database = {
     }
     Enums: {
       file_kind: "markdown" | "code"
-      file_language: "python" | "java" | "javascript" | "html" | "css" | "cpp"
+      file_language:
+        | "python"
+        | "java"
+        | "javascript"
+        | "html"
+        | "css"
+        | "cpp"
+        | "typescript"
+        | "go"
+        | "rust"
+        | "sql"
+        | "bash"
       version_source: "file" | "project" | "auto"
     }
     CompositeTypes: {
@@ -477,7 +511,19 @@ export const Constants = {
   public: {
     Enums: {
       file_kind: ["markdown", "code"],
-      file_language: ["python", "java", "javascript", "html", "css", "cpp"],
+      file_language: [
+        "python",
+        "java",
+        "javascript",
+        "html",
+        "css",
+        "cpp",
+        "typescript",
+        "go",
+        "rust",
+        "sql",
+        "bash",
+      ],
       version_source: ["file", "project", "auto"],
     },
   },

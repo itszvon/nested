@@ -254,6 +254,37 @@ async function main() {
     );
   });
 
+  console.log("\nordering");
+  await asUser(A, async () => {
+    const ids = [];
+    for (const name of ["one.go", "two.go", "three.go"]) {
+      ids.push(
+        (
+          await one(
+            "insert into public.files (owner_id, folder_id, name, kind, content) values ($1,$2,$3,'code','x') returning id",
+            [A, gamma, name],
+          )
+        ).id,
+      );
+    }
+
+    // Reverse the order and check it stuck.
+    await client.query("select public.reorder_nodes('file', $1, $2::uuid[])", [
+      gamma,
+      [ids[2], ids[0], ids[1]],
+    ]);
+
+    const ordered = await client.query(
+      "select id from public.files where id = any($1::uuid[]) order by sort_order",
+      [ids],
+    );
+    ok(
+      "reorder_nodes writes the requested order",
+      JSON.stringify(ordered.rows.map((row) => row.id)) ===
+        JSON.stringify([ids[2], ids[0], ids[1]]),
+    );
+  });
+
   console.log("\nsaving and versions");
   await asUser(A, async () => {
     const saved = await one("select * from public.save_file($1,$2,$3)", [file, "print(2)", 1]);

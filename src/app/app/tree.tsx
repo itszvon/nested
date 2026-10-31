@@ -4,12 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   buildWorkspace,
+  childrenOf,
   flattenWorkspace,
   type FileRow,
   type FolderRow,
   type TreeNode,
 } from "@/lib/tree";
-import { moveNode, renameNode, trashNode } from "./actions";
+import { moveNode, renameNode, reorderNodes, trashNode } from "./actions";
 import { TypeIcon } from "./icons";
 import { languageLabel as languageLabelOf } from "@/lib/languages";
 import { clearBuffers } from "@/lib/buffers";
@@ -84,7 +85,10 @@ export function WorkspaceTree({
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [projectHistory, setProjectHistory] = useState<{ id: string; name: string } | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
-  const [dragOver, setDragOver] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<
+    { id: string; position: "before" | "after" | "into" } | null
+  >(null);
+  const justDragged = useRef(false);
   const anchorRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -215,16 +219,51 @@ export function WorkspaceTree({
     setSelection(new Set(rows.slice(low, high + 1).map((row) => row.node.id)));
   }
 
-  async function performMove(
+  /**
+   * One drop does two things: change the parent, then write the sibling order
+   * for that parent. Order is an explicit list, not a computed midpoint, so
+   * repeated drops cannot run out of space between two numbers.
+   */
+  async function handleDrop(
     payload: { kind: "folder" | "file"; id: string },
-    parentId: string | null,
+    target: { id: string; position: "before" | "after" | "into" } | null,
   ) {
-    if (payload.id === parentId) return;
-    const result = await moveNode(payload.kind, payload.id, parentId);
-    if (!result.ok) {
-      setNotice(result.error);
+    const source = workspace.index.get(payload.id);
+    if (!source) return;
+    if (target && target.id === payload.id) return;
+
+    let parentId: string | null = null;
+    let index = Number.MAX_SAFE_INTEGER;
+
+    if (target && target.position === "into") {
+      parentId = target.id;
+    } else if (target) {
+      const targetNode = workspace.index.get(target.id);
+      if (!targetNode) return;
+      parentId = targetNode.parentId;
+      const siblings = childrenOf(workspace, parentId).filter(
+        (node) => node.type === payload.kind && node.id !== payload.id,
+      );
+      const at = siblings.findIndex((node) => node.id === target.id);
+      index = target.position === "before" ? at : at + 1;
+    }
+
+    if (parentId === payload.id) return;
+
+    const moved = await moveNode(payload.kind, payload.id, parentId);
+    if (!moved.ok) {
+      setNotice(moved.error);
       return;
     }
+
+    const siblings = childrenOf(workspace, parentId)
+      .filter((node) => node.type === payload.kind && node.id !== payload.id)
+      .map((node) => node.id);
+    siblings.splice(Math.max(0, Math.min(index, siblings.length)), 0, payload.id);
+
+    const ordered = await reorderNodes(payload.kind, parentId, siblings);
+    if (!ordered.ok) setNotice(ordered.error);
+
     router.refresh();
   }
 
@@ -463,6 +502,7 @@ export function WorkspaceTree({
                 tabIndex={index === focusIndex ? 0 : -1}
                 onKeyDown={(event) => onKeyDown(event, index)}
                 onClick={(event) => {
+                  if (justDragged.current) return;
                   setFocusIndex(index);
 
                   if (event.shiftKey) {
@@ -485,35 +525,54 @@ export function WorkspaceTree({
                   setFocusIndex(index);
                   setMenu({ id: row.node.id, kind: row.node.type, name: row.node.name });
                 }}
-                draggable={row.node.parentId !== null}
+                draggable={row.node.type === "file" || row.node.parentId !== null}
                 onDragStart={(event) => {
+                  justDragged.current = true;
                   event.dataTransfer.setData(
                     "application/x-nested",
                     JSON.stringify({ kind: row.node.type, id: row.node.id }),
                   );
                   event.dataTransfer.effectAllowed = "move";
                 }}
+                onDragEnd={() => {
+                  setDropTarget(null);
+                  window.setTimeout(() => {
+                    justDragged.current = false;
+                  }, 150);
+                }}
                 onDragOver={(event) => {
-                  if (!isFolder) return;
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "move";
-                  setDragOver(row.node.id);
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  const offset = (event.clientY - rect.top) / rect.height;
+                  const position =
+                    isFolder && offset > 0.3 && offset < 0.7
+                      ? "into"
+                      : offset < 0.5
+                        ? "before"
+                        : "after";
+                  setDropTarget({ id: row.node.id, position });
                 }}
-                onDragLeave={() => setDragOver((current) => (current === row.node.id ? null : current))}
+                onDragLeave={(event) => {
+                  if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                  setDropTarget((current) => (current?.id === row.node.id ? null : current));
+                }}
                 onDrop={(event) => {
-                  if (!isFolder) return;
                   event.preventDefault();
                   event.stopPropagation();
-                  setDragOver(null);
+                  const target = dropTarget;
+                  setDropTarget(null);
                   const raw = event.dataTransfer.getData("application/x-nested");
-                  if (!raw) return;
-                  void performMove(JSON.parse(raw), row.node.id);
+                  if (!raw || !target) return;
+                  void handleDrop(JSON.parse(raw), target);
                 }}
                 className={[
                   "group relative flex h-7 cursor-default items-center gap-1.5 border-b border-rule pr-1.5 text-[13px] select-none",
                   "hover:bg-[#111614]",
                   selection.has(row.node.id) ? "bg-[#141a17]" : "",
-                  dragOver === row.node.id ? "outline outline-1 -outline-offset-1 outline-accent" : "",
+                  dropTarget?.id === row.node.id && dropTarget.position === "into"
+                    ? "outline outline-1 -outline-offset-1 outline-accent"
+                    : "",
                   isSelected
                     ? "bg-panel shadow-[inset_2px_0_0_var(--color-accent)]"
                     : selection.has(row.node.id)
@@ -646,6 +705,15 @@ export function WorkspaceTree({
                     </MenuItem>
                   </div>
                 ) : null}
+                {dropTarget?.id === row.node.id && dropTarget.position !== "into" ? (
+                  <span
+                    aria-hidden="true"
+                    className={
+                      "pointer-events-none absolute inset-x-0 h-px bg-accent " +
+                      (dropTarget.position === "before" ? "-top-px" : "-bottom-px")
+                    }
+                  />
+                ) : null}
               </div>
             );
           })}
@@ -655,17 +723,20 @@ export function WorkspaceTree({
       <div
         onDragOver={(event) => {
           event.preventDefault();
-          setDragOver("root");
+          setDropTarget({ id: "root", position: "into" });
         }}
-        onDragLeave={() => setDragOver(null)}
+        onDragLeave={() => setDropTarget(null)}
         onDrop={(event) => {
           event.preventDefault();
-          setDragOver(null);
+          setDropTarget(null);
           const raw = event.dataTransfer.getData("application/x-nested");
           if (!raw) return;
-          void performMove(JSON.parse(raw), null);
+          void handleDrop(JSON.parse(raw), null);
         }}
-        className={`min-h-14 border-t border-dashed ${dragOver === "root" ? "border-accent bg-[#141a17]" : "border-rule"}`}
+        className={
+          "min-h-14 border-t border-dashed " +
+          (dropTarget?.id === "root" ? "border-accent bg-[#141a17]" : "border-rule")
+        }
       >
         <p className="px-3 py-6 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
           drop here to move to the top level

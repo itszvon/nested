@@ -424,6 +424,27 @@ export async function moveNode(
   return { ok: true };
 }
 
+/** Writes the sibling order for one parent in a single round trip. */
+export async function reorderNodes(
+  kind: "folder" | "file",
+  parentId: string | null,
+  ids: string[],
+): Promise<ActionResult> {
+  if (ids.length === 0) return { ok: true };
+  await requireUser();
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc("reorder_nodes", {
+    p_kind: kind,
+    p_parent: parentId,
+    p_ids: ids,
+  });
+
+  if (error) return { ok: false, error: explain(error.message) };
+  revalidatePath("/app");
+  return { ok: true };
+}
+
 /** Current server copy of one file, for resolving a save conflict. */
 export async function getFileSnapshot(
   fileId: string,

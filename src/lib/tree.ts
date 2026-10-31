@@ -23,6 +23,7 @@ export type FileRow = {
   language: string | null;
   revision: number;
   byte_size: number;
+  sort_order: number;
   updated_at: string;
 };
 
@@ -35,6 +36,7 @@ export type TreeNode = {
   kind?: FileKind;
   language?: string | null;
   revision?: number;
+  sortOrder?: number;
   byteSize?: number;
   updatedAt?: string;
   children: TreeNode[];
@@ -86,9 +88,7 @@ export function buildWorkspace(folders: FolderRow[], files: FileRow[]): Workspac
     index.set(row.id, node);
 
     const childFolders = (foldersByParent.get(row.id) ?? []).sort(bySortOrder);
-    const childFiles = (filesByFolder.get(row.id) ?? []).sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }),
-    );
+    const childFiles = (filesByFolder.get(row.id) ?? []).sort(bySortOrder);
 
     for (const child of childFolders) node.children.push(buildFolder(child));
     for (const child of childFiles) node.children.push(buildFile(child));
@@ -106,6 +106,7 @@ export function buildWorkspace(folders: FolderRow[], files: FileRow[]): Workspac
       kind: row.kind,
       language: row.language,
       revision: row.revision,
+      sortOrder: row.sort_order,
       byteSize: row.byte_size,
       updatedAt: row.updated_at,
       children: [],
@@ -115,9 +116,7 @@ export function buildWorkspace(folders: FolderRow[], files: FileRow[]): Workspac
   }
 
   const projects = (foldersByParent.get(null) ?? []).sort(bySortOrder).map(buildFolder);
-  const looseFiles = (filesByFolder.get(null) ?? [])
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }))
-    .map(buildFile);
+  const looseFiles = (filesByFolder.get(null) ?? []).sort(bySortOrder).map(buildFile);
 
   return { projects, looseFiles, index };
 }
@@ -155,4 +154,11 @@ export function flattenWorkspace(
   for (const project of workspace.projects) push(project, 0);
 
   return rows;
+}
+
+/** Children of a parent in display order, or the root lists when null. */
+export function childrenOf(workspace: Workspace, parentId: string | null): TreeNode[] {
+  if (parentId === null) return [...workspace.looseFiles, ...workspace.projects];
+  const parent = workspace.index.get(parentId);
+  return parent ? parent.children : [];
 }
