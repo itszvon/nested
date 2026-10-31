@@ -98,6 +98,46 @@ Ideas chosen because the app is used to think in code, not only to store it.
 None of these need a second service: everything runs in the browser or in
 Postgres, which is the constraint that keeps the free tier viable.
 
+## Why people stay on GitHub, PyCharm and Google Docs
+
+Honest reasons, and what would actually move someone. The goal is not to beat
+these tools; it is to win the twenty minutes before them.
+
+| Tool | Why people pick it | What Nested can do about it |
+|---|---|---|
+| **GitHub** | It is where code is expected to live. Commit history you can diff, pull requests, issues, collaborators, off-site backup, a public profile that says "I am a developer", and green squares that make consistency visible. | Do not fight git for committed work. Win the pre-commit layer: portable zip export, a real line diff in the version browser, and no repository to create. Long term, a one-way "send this project to a repo" is the honest bridge, not reimplementing branches. |
+| **PyCharm / VS Code** | Refactoring, go-to-definition, debugging, test running, terminal, completion, git integration, and project-wide rename. A whole project is loaded, indexed, and understood. | Never compete on IDE depth. Compete on zero setup: open a browser, a file is editable in a second, from any machine. Add the few IDE affordances that are cheap here — run selection, runner fixtures, line links, project-wide find. Be the tab next to the IDE, not a replacement. |
+| **Google Docs** | Rich text, comments, suggestion mode, sharing with one link, mobile apps, offline editing, and total familiarity. It is the default for prose. | Do not add rich text. Instead make the bridge trivial: paste Markdown in and keep it, copy out cleanly, and let notes-on-anything absorb the context people currently bury in comments. The wedge is code next to prose, which Docs cannot do at all. |
+
+### The deeper reasons
+
+- **Trust.** GitHub is someone else's computer with backups and an uptime record.
+  Nested is one Postgres instance on a free tier with no vendor backups. Export is
+  the mitigation, and it should be one click, obvious, and mentioned in Settings.
+- **Retrieval.** No full-text search means people fall back to tools that have it.
+  Version history does not help you find the file you forgot the name of.
+- **Import friction.** Work already exists elsewhere. Paste is the only door right
+  now; a zip or gist import would remove the setup cost of trying Nested at all.
+- **Identity and sharing.** GitHub is a portfolio; Docs is a collaboration surface.
+  Nested is deliberately private, so it cannot be either. Accept that, and stop
+  trying to win the case where someone needs to send a link.
+- **Habit and muscle memory.** Thousands of shortcuts already learned. The command
+  palette, familiar editing keys, and a shortcut table reduce the cost of a second
+  tool, but they will not beat the first.
+
+### What actually converts people
+
+1. **A minute of value.** The welcome document exists for this. So does zero
+   signup ceremony beyond Google, and a file openable in one click.
+2. **Loss that is visible.** Named versions and side-by-side apply are the feature
+   people miss after they have been burned once by an editor's undo stack.
+3. **Portability.** If leaving is cheap, trying is cheap. Zip export and JSON
+   export should be advertised, not buried.
+4. **Speed over completeness.** Command palette, quick capture, and paste-a-file
+   beat feature parity every time.
+5. **Search, eventually.** It is the one missing capability that makes people
+   leave for a tool that has it.
+
 ## Explicitly not doing
 
 - Markdown rendering as a default view — the SPEC rules it out; a checklist kind
