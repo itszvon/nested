@@ -19,12 +19,12 @@ export const LANGUAGE_INFO: Record<string, LanguageInfo> = {
   javascript: { label: "JavaScript", status: "runs" },
   html: { label: "HTML", status: "preview" },
   css: { label: "CSS", status: "preview" },
-  typescript: { label: "TypeScript", status: "external", tool: "tsc or node" },
+  typescript: { label: "TypeScript", status: "runs" },
   java: { label: "Java", status: "external", tool: "a JDK" },
   cpp: { label: "C++", status: "external", tool: "a C++ compiler" },
   go: { label: "Go", status: "external", tool: "the go command" },
   rust: { label: "Rust", status: "external", tool: "cargo" },
-  sql: { label: "SQL", status: "external", tool: "a database" },
+  sql: { label: "SQL", status: "runs" },
   bash: { label: "Bash", status: "external", tool: "a shell" },
 };
 

@@ -6,7 +6,7 @@ The checklist for every new language. Fields change, the order does not.
 
 Three honest tiers, and the app must say which one applies:
 
-- **Runs**: JavaScript, Python. A real runtime exists in the browser.
+- **Runs**: JavaScript, TypeScript (types erased, then run as JavaScript), Python, SQL.
 - **Previews**: HTML, CSS. Rendered, not executed as a program.
 - **Edit only**: everything else. Coloured, checked, formatted where a formatter exists, but the Run button explains why it will not start.
 

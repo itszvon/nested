@@ -111,7 +111,7 @@ function cssDocument(code: string) {
 
 type ConsoleLine = { kind: "out" | "ask" | "in" | "err"; text: string };
 
-const SUPPORTED = new Set(["javascript", "python", "html", "css"]);
+const SUPPORTED = new Set(["javascript", "python", "typescript", "sql", "html", "css"]);
 
 export function RunnerPanel({
   language,
@@ -185,10 +185,16 @@ export function RunnerPanel({
 
   const supported = language !== null && SUPPORTED.has(language);
   const preview = language === "html" || language === "css";
-  // Both scriptable languages run in the worker once isolation is available,
-  // so prompt() and input() both block inline instead of opening a dialog.
+  // TypeScript and SQL load their runtimes in the worker, which needs the
+  // shared-memory isolation that Python and JavaScript already require.
+  const needsIsolation = language === "typescript" || language === "sql";
+  const blocked = needsIsolation && !isolated;
   const usesWorker =
-    isolated && (language === "python" || language === "javascript");
+    isolated &&
+    (language === "python" ||
+      language === "javascript" ||
+      language === "typescript" ||
+      language === "sql");
 
   /**
    * Idle timeout, not wall-clock: interactive scripts that keep producing
@@ -274,6 +280,7 @@ export function RunnerPanel({
     controlRef.current = control;
     bufferRef.current = buffer;
 
+    let cancelled = false;
     const blob = new Blob([RUNNER_WORKER_SOURCE], { type: "text/javascript" });
     const url = URL.createObjectURL(blob);
     const worker = new Worker(url);
@@ -300,9 +307,40 @@ export function RunnerPanel({
     };
 
     worker.postMessage({ type: "init", control: control.buffer, buffer });
-    worker.postMessage({ type: "run", code, language });
+
+    void (async () => {
+      let payload = code;
+      let runtime = language ?? "javascript";
+
+      if (language === "typescript") {
+        try {
+          const { transform } = await import("sucrase");
+          payload = transform(code, {
+            transforms: ["typescript"],
+            disableESTransforms: true,
+          }).code;
+          runtime = "javascript";
+          setLines((current) => [
+            ...current,
+            { kind: "out", text: "types erased (syntax only, no type checking)" },
+          ]);
+        } catch (error) {
+          setLines((current) => [
+            ...current,
+            { kind: "err", text: `TypeScript could not be read: ${(error as Error).message}` },
+          ]);
+          setStatus("done");
+          return;
+        }
+      }
+
+      if (!cancelled) {
+        worker.postMessage({ type: "run", code: payload, language: runtime });
+      }
+    })();
 
     return () => {
+      cancelled = true;
       worker.terminate();
       workerRef.current = null;
       URL.revokeObjectURL(url);
@@ -388,7 +426,16 @@ export function RunnerPanel({
         </button>
       </div>
 
-      {!supported ? (
+      {blocked ? (
+        <div className="px-4 py-4 text-[12px] leading-relaxed text-ink-dim">
+          <p className="text-ink">{languageLabel(language)} needs cross-origin isolation.</p>
+          <p className="mt-1 text-ink-faint">
+            This browser reported that the page is not isolated, so the runtime cannot start.
+            Reload the page; if it keeps happening, the browser is refusing the headers this app
+            sends.
+          </p>
+        </div>
+      ) : !supported ? (
         <div className="px-4 py-4 text-[12px] leading-relaxed text-ink-dim">
           <p className="text-ink">{languageLabel(language)} does not run in Nested.</p>
           <p className="mt-1 text-ink-faint">
@@ -396,8 +443,8 @@ export function RunnerPanel({
             machine and paste the result back here.
           </p>
           <p className="mt-1 text-ink-faint">
-            JavaScript and Python execute in the browser. HTML and CSS render a preview. Nothing
-            is sent anywhere.
+            JavaScript, TypeScript, Python and SQL execute in the browser. HTML and CSS render a
+            preview. Nothing is sent anywhere.
           </p>
         </div>
       ) : preview ? (

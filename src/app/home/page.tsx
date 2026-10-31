@@ -224,9 +224,9 @@ export default function LandingPage() {
                 allow, and they are on this page before anyone signs in.
               </p>
               <p className="mt-4 max-w-md text-[13px] leading-relaxed text-ink-faint">
-                JavaScript and Python run in the browser. Everything else is edited,
-                coloured and checked but not executed, because that would mean sending your
-                code to a server.
+                JavaScript, TypeScript, Python and SQL run in the browser. Everything else
+                is edited, coloured and checked but not executed, because that would mean sending
+                your code to a server.
               </p>
             </div>
 

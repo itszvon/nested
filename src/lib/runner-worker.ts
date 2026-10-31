@@ -16,6 +16,7 @@ let control = null;
 let buffer = null;
 let pyodide = null;
 let pyReady = false;
+let sqlite = null;
 
 function send(type, text) {
   postMessage({ type: type, text: String(text) });
@@ -100,6 +101,41 @@ async function runPython(code) {
   send("done", "");
 }
 
+async function runSql(code) {
+  if (!sqlite) {
+    send("status", "loading sqlite (about 1 MB)...");
+    importScripts("https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js");
+    sqlite = await initSqlJs({
+      locateFile: function (name) {
+        return "https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/" + name;
+      }
+    });
+    lockDown();
+  }
+
+  var db = new sqlite.Database();
+  try {
+    var results = db.exec(code);
+    if (!results || results.length === 0) {
+      send("out", "no rows returned");
+    } else {
+      results.forEach(function (result) {
+        send("out", result.columns.join(" | "));
+        result.values.forEach(function (row) {
+          send("out", row.map(function (value) {
+            return value === null ? "NULL" : String(value);
+          }).join(" | "));
+        });
+      });
+    }
+    send("done", "");
+  } catch (error) {
+    send("error", (error && error.message) || String(error));
+  } finally {
+    db.close();
+  }
+}
+
 function runJavaScript(code) {
   installConsole();
   lockDown();
@@ -125,6 +161,8 @@ self.onmessage = async function (event) {
   try {
     if (message.language === "python") {
       await runPython(message.code);
+    } else if (message.language === "sql") {
+      await runSql(message.code);
     } else {
       runJavaScript(message.code);
     }
