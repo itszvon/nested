@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Nested — notes and code, in folders inside folders",
+  title: "Nested · notes and code in folders inside folders",
   description:
-    "A private place for notes, snippets and source files. Deep folders, a real editor for five languages, and explicit saves you can always return to.",
+    "Notes and code in one tree. Google sign-in, a code editor for five languages, and a saved version behind every save.",
 };
 
 const LIMITS = [
@@ -19,18 +19,18 @@ const LIMITS = [
 const FEATURES = [
   {
     label: "01 / structure",
-    title: "Nesting without a ceiling",
-    body: "Projects sit at the top. Inside them, folders go inside folders, as deep as the work actually is. Drag to move, right-click to rename, and the whole tree stays keyboard-navigable.",
+    title: "Folders hold folders",
+    body: "Projects sit at the top. Inside one, folders go inside folders with no depth limit. Drag a row to move it, press F2 to rename, and arrow keys walk the tree.",
   },
   {
     label: "02 / editor",
-    title: "An editor, not a text box",
-    body: "Syntax colouring, bracket matching, folding, search and multi-cursor for five languages. Blank-line tidying per language, format, checks from the real parser, and a runner that keeps your session private.",
+    title: "Five languages, one editor",
+    body: "Python, Java, JavaScript, HTML/CSS and C++. Colouring, bracket matching, folding, search, several cursors, a format button, and blank-line tidying that keeps the gaps between your functions.",
   },
   {
     label: "03 / history",
-    title: "Saves you can prove",
-    body: "Save File writes one file and appends a version. Save Project captures every changed file at once. Restore any of them, and a deleted file waits in the trash for thirty days.",
+    title: "A version behind every save",
+    body: "Save File records one file. Save Project records every changed file at once. The version list puts any of them back into the editor, and the file only changes when you save again. Deleted files sit in the trash for thirty days.",
   },
 ];
 
@@ -166,9 +166,9 @@ export default function LandingPage() {
           </h1>
 
           <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-ink-dim">
-            A private place for the snippets, drafts and half-finished files that do not belong in
-            a repository. Google sign-in, a real editor for five languages, and saves you can
-            return to.
+            For the drafts, snippets and half-finished files that do not belong in a repository.
+            Sign in with Google, make a folder, start typing. Every save leaves a version you can
+            go back to.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -187,7 +187,7 @@ export default function LandingPage() {
           </div>
 
           <p className="mt-4 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
-            Google is the only way in. No sharing, no public links.
+            Google is the only way in. No sharing, no public links, no guests.
           </p>
 
           <div className="mt-16">
@@ -218,12 +218,12 @@ export default function LandingPage() {
                 Deliberate limits
               </h2>
               <p className="mt-4 max-w-md text-[13px] leading-relaxed text-ink-dim">
-                Nested runs on free infrastructure, so it says what it cannot do instead of
-                discovering it later. Nothing here is hidden behind a plan.
+                The database and hosting are on free tiers. These are the numbers those tiers
+                allow, and they are on this page before anyone signs in.
               </p>
               <p className="mt-4 max-w-md text-[13px] leading-relaxed text-ink-faint">
-                Java and C++ are edited and checked, but not executed: there is no browser runtime
-                for either, and running them would mean sending your code to another service.
+                Java and C++ are coloured and checked. They do not run here: no browser runtime
+                exists for either, and the alternative is sending your code to a server.
               </p>
             </div>
 
@@ -264,7 +264,7 @@ export default function LandingPage() {
             Nested
           </span>
           <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint sm:ml-auto">
-            Dark only · No tracking · Next.js and Supabase
+            Next.js and Supabase · no analytics · dark only
           </span>
         </div>
       </footer>

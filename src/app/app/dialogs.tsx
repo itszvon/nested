@@ -144,7 +144,7 @@ export function NewFileDialog({
   }
 
   return (
-    <Modal title={`New file — ${folderName}`} onClose={onClose}>
+    <Modal title={`New file · ${folderName}`} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3 p-4">
         <div className="flex gap-2">
           {(["markdown", "code"] as FileKind[]).map((option) => (
@@ -261,7 +261,7 @@ export function NewFolderDialog({
   }
 
   return (
-    <Modal title={`New folder — ${parentName}`} onClose={onClose}>
+    <Modal title={`New folder · ${parentName}`} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3 p-4">
         <input
           autoFocus
@@ -402,7 +402,7 @@ export function ProjectHistoryDialog({
   }
 
   return (
-    <Modal title={`Project history — ${projectName}`} onClose={onClose}>
+    <Modal title={`Project history · ${projectName}`} onClose={onClose}>
       {error ? (
         <p className="border-b border-rule bg-accent/10 px-4 py-2 text-[11px] text-ink">{error}</p>
       ) : null}
@@ -563,7 +563,7 @@ export function VersionHistoryDialog({
   const visible = (versions ?? []).filter((version) => !hideAuto || version.source !== "auto");
 
   return (
-    <Modal title={`Version history — ${fileName}`} onClose={onClose}>
+    <Modal title={`Version history · ${fileName}`} onClose={onClose}>
       <div className="flex items-center gap-3 border-b border-rule px-4 py-2">
         <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
           {versions === null ? "loading" : `${visible.length} version${visible.length === 1 ? "" : "s"}`}

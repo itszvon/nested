@@ -4,7 +4,7 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { signInWithGoogle } from "./actions";
 
 export const metadata: Metadata = {
-  title: "Sign in — Nested",
+  title: "Sign in · Nested",
 };
 
 const ERROR_COPY: Record<string, string> = {
