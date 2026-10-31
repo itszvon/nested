@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
-import { SITE_URL } from "@/lib/site";
+import { requestOrigin } from "@/lib/site";
 
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -592,9 +593,10 @@ export async function changeEmail(input: {
   }
 
   const supabase = await createClient();
+  const origin = requestOrigin(await headers());
   const { error } = await supabase.auth.updateUser(
     { email: next },
-    { emailRedirectTo: `${SITE_URL}/settings` },
+    { emailRedirectTo: `${origin}/auth/callback?next=/settings` },
   );
 
   if (error) {

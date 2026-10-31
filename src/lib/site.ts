@@ -10,6 +10,22 @@ export const OPERATOR = "Nested";
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 /**
+ * The public origin of the request. Server actions carry an origin header;
+ * when they do not, the proxy headers are enough. This keeps production links
+ * correct without needing an environment variable set on the host.
+ */
+export function requestOrigin(headers: Headers): string {
+  const origin = headers.get("origin");
+  if (origin) return origin;
+
+  const host = headers.get("x-forwarded-host") ?? headers.get("host");
+  if (!host) return SITE_URL;
+
+  const proto = headers.get("x-forwarded-proto") ?? "https";
+  return `${proto}://${host}`;
+}
+
+/**
  * Emergency switch for the highest-risk feature in the product: executing user
  * code. Set NEXT_PUBLIC_RUNNER_ENABLED=false and redeploy to hide the Run
  * button and refuse the panel, without touching anything else.
