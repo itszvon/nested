@@ -9,7 +9,7 @@ import {
   type FolderRow,
   type TreeNode,
 } from "@/lib/tree";
-import { renameNode, trashNode } from "./actions";
+import { moveNode, renameNode, trashNode } from "./actions";
 import { TypeIcon } from "./icons";
 import { languageLabel as languageLabelOf } from "@/lib/languages";
 import { clearBuffers } from "@/lib/buffers";
@@ -84,6 +84,7 @@ export function WorkspaceTree({
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [projectHistory, setProjectHistory] = useState<{ id: string; name: string } | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [dragOver, setDragOver] = useState<string | null>(null);
   const anchorRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -212,6 +213,19 @@ export function WorkspaceTree({
     const low = Math.min(from, toIndex);
     const high = Math.max(from, toIndex);
     setSelection(new Set(rows.slice(low, high + 1).map((row) => row.node.id)));
+  }
+
+  async function performMove(
+    payload: { kind: "folder" | "file"; id: string },
+    parentId: string | null,
+  ) {
+    if (payload.id === parentId) return;
+    const result = await moveNode(payload.kind, payload.id, parentId);
+    if (!result.ok) {
+      setNotice(result.error);
+      return;
+    }
+    router.refresh();
   }
 
   async function trashSelection() {
@@ -471,10 +485,35 @@ export function WorkspaceTree({
                   setFocusIndex(index);
                   setMenu({ id: row.node.id, kind: row.node.type, name: row.node.name });
                 }}
+                draggable={row.node.parentId !== null}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData(
+                    "application/x-nested",
+                    JSON.stringify({ kind: row.node.type, id: row.node.id }),
+                  );
+                  event.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(event) => {
+                  if (!isFolder) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  setDragOver(row.node.id);
+                }}
+                onDragLeave={() => setDragOver((current) => (current === row.node.id ? null : current))}
+                onDrop={(event) => {
+                  if (!isFolder) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setDragOver(null);
+                  const raw = event.dataTransfer.getData("application/x-nested");
+                  if (!raw) return;
+                  void performMove(JSON.parse(raw), row.node.id);
+                }}
                 className={[
                   "group relative flex h-7 cursor-default items-center gap-1.5 border-b border-rule pr-1.5 text-[13px] select-none",
                   "hover:bg-[#111614]",
                   selection.has(row.node.id) ? "bg-[#141a17]" : "",
+                  dragOver === row.node.id ? "outline outline-1 -outline-offset-1 outline-accent" : "",
                   isSelected
                     ? "bg-panel shadow-[inset_2px_0_0_var(--color-accent)]"
                     : selection.has(row.node.id)
@@ -612,6 +651,26 @@ export function WorkspaceTree({
           })}
         </div>
       )}
+
+      <div
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragOver("root");
+        }}
+        onDragLeave={() => setDragOver(null)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setDragOver(null);
+          const raw = event.dataTransfer.getData("application/x-nested");
+          if (!raw) return;
+          void performMove(JSON.parse(raw), null);
+        }}
+        className={`min-h-14 border-t border-dashed ${dragOver === "root" ? "border-accent bg-[#141a17]" : "border-rule"}`}
+      >
+        <p className="px-3 py-6 text-center font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
+          drop here to move to the top level
+        </p>
+      </div>
 
       {newFileTarget ? (
         <NewFileDialog

@@ -13,9 +13,10 @@ import {
   getBuffer,
   setBuffer,
 } from "@/lib/buffers";
+import { formatCode, FORMATTABLE } from "@/lib/format";
 import { languageLabel, languageStatus } from "@/lib/languages";
 import { removeBlankLines, tidyBlankLines } from "@/lib/whitespace";
-import { saveFile, saveProject, type SaveProjectItem } from "./actions";
+import { getFileSnapshot, saveFile, saveProject, type SaveProjectItem } from "./actions";
 import { SaveProjectDialog, VersionHistoryDialog } from "./dialogs";
 import { RunnerPanel } from "./runner";
 import { openLintPanel } from "@codemirror/lint";
@@ -51,6 +52,8 @@ export function FilePane({
   const [saveProjectOpen, setSaveProjectOpen] = useState(false);
   const [runner, setRunner] = useState<{ code: string; runId: number } | null>(null);
   const [diagnostics, setDiagnostics] = useState(0);
+  const [formatting, setFormatting] = useState(false);
+  const [conflict, setConflict] = useState(false);
 
   // "Version history" arrives as ?versions=1 from the tree menu. Consume it and
   // clean the URL, so the same menu item works again after closing.
@@ -132,9 +135,11 @@ export function FilePane({
 
     if (!result.ok) {
       setError(result.error);
+      if (/changed somewhere else/i.test(result.error)) setConflict(true);
       return;
     }
 
+    setConflict(false);
     setSavedText(value);
     setRevision(result.revision);
     setSavedAt(new Date().toISOString());
@@ -228,6 +233,67 @@ export function FilePane({
     router.refresh();
   }
 
+  /** Take the server's copy, throwing away the local buffer. */
+  async function reloadTheirCopy() {
+    const snapshot = await getFileSnapshot(file.id);
+    if (!snapshot.ok) {
+      setError(snapshot.error);
+      return;
+    }
+    const view = viewRef.current;
+    if (view) {
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: snapshot.content },
+      });
+    }
+    setText(snapshot.content);
+    setSavedText(snapshot.content);
+    setRevision(snapshot.revision);
+    setConflict(false);
+    setError(null);
+  }
+
+  /** Overwrite the server with the local buffer, using its own revision. */
+  async function keepMine() {
+    const snapshot = await getFileSnapshot(file.id);
+    if (!snapshot.ok) {
+      setError(snapshot.error);
+      return;
+    }
+    setSaving(true);
+    const result = await saveFile(file.id, textRef.current, snapshot.revision);
+    setSaving(false);
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    setRevision(result.revision);
+    setSavedText(textRef.current);
+    setSavedAt(new Date().toISOString());
+    setConflict(false);
+    setError(null);
+    await deleteDraft(userId, file.id);
+    router.refresh();
+  }
+
+  async function runFormatter() {
+    const view = viewRef.current;
+    if (!view || !file.language) return;
+
+    setFormatting(true);
+    setError(null);
+    try {
+      const formatted = await formatCode(file.language, view.state.doc.toString());
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: formatted } });
+    } catch (problem) {
+      setError((problem as Error).message);
+    } finally {
+      setFormatting(false);
+    }
+  }
+
   /** Replaces the whole document in one transaction, so one undo puts it back. */
   function transform(next: (value: string) => string) {
     const view = viewRef.current;
@@ -291,6 +357,7 @@ export function FilePane({
           <button
             type="button"
             onClick={() => viewRef.current && undo(viewRef.current)}
+            aria-label="Undo"
             title="Undo (Ctrl+Z)"
             className="h-7 w-7 border border-transparent font-mono text-[12px] text-ink-faint hover:border-rule hover:text-ink"
           >
@@ -299,11 +366,24 @@ export function FilePane({
           <button
             type="button"
             onClick={() => viewRef.current && redo(viewRef.current)}
+            aria-label="Redo"
             title="Redo (Ctrl+Shift+Z)"
             className="h-7 w-7 border border-transparent font-mono text-[12px] text-ink-faint hover:border-rule hover:text-ink"
           >
             ↷
           </button>
+
+          {file.kind === "code" && file.language && FORMATTABLE.has(file.language) ? (
+            <button
+              type="button"
+              onClick={() => void runFormatter()}
+              disabled={formatting}
+              title="Format this file"
+              className="ml-1 h-7 border border-transparent px-2 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule hover:text-ink disabled:opacity-40"
+            >
+              {formatting ? "..." : "format"}
+            </button>
+          ) : null}
 
           {file.kind === "code" ? (
             <>
@@ -382,7 +462,34 @@ export function FilePane({
         </div>
       </div>
 
-      {error ? (
+      {conflict ? (
+        <div className="flex flex-wrap items-center gap-3 border-b border-rule bg-accent/10 px-4 py-2 text-[11px] text-ink">
+          <span className="flex-1">
+            This file changed somewhere else. Take their copy, or overwrite it with yours.
+          </span>
+          <button
+            type="button"
+            onClick={() => void reloadTheirCopy()}
+            className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink hover:text-accent"
+          >
+            reload theirs
+          </button>
+          <button
+            type="button"
+            onClick={() => void keepMine()}
+            className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink hover:text-accent"
+          >
+            keep mine
+          </button>
+          <button
+            type="button"
+            onClick={() => setConflict(false)}
+            className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint"
+          >
+            dismiss
+          </button>
+        </div>
+      ) : error ? (
         <div className="flex items-center gap-3 border-b border-rule bg-accent/10 px-4 py-2 text-[11px] text-ink">
           <span className="flex-1">{error}</span>
           <button

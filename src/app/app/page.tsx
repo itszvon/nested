@@ -9,6 +9,7 @@ import { getWorkspaceRows } from "@/lib/workspace";
 import { signOut } from "./actions";
 import { FilePane } from "./file-pane";
 import { SidebarShell } from "./sidebar-shell";
+import { SidebarToggle } from "./sidebar-toggle";
 import { WorkspaceTree } from "./tree";
 
 export const metadata: Metadata = {
@@ -44,6 +45,7 @@ export default async function AppPage({
         <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink">
           Nested
         </span>
+        <SidebarToggle />
         <Link
           href="/home"
           className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint hover:text-ink"

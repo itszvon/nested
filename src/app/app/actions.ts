@@ -404,6 +404,44 @@ export async function emptyTrash(): Promise<{ ok: true; removed: number } | { ok
   return { ok: true, removed: (data as number) ?? 0 };
 }
 
+export async function moveNode(
+  kind: "folder" | "file",
+  id: string,
+  parentId: string | null,
+): Promise<ActionResult> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc("move_node", {
+    p_kind: kind,
+    p_id: id,
+    p_new_parent: parentId,
+    p_new_sort: 0,
+  });
+
+  if (error) return { ok: false, error: explain(error.message) };
+  revalidatePath("/app");
+  return { ok: true };
+}
+
+/** Current server copy of one file, for resolving a save conflict. */
+export async function getFileSnapshot(
+  fileId: string,
+): Promise<{ ok: true; content: string; revision: number } | { ok: false; error: string }> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("files")
+    .select("content, revision")
+    .eq("id", fileId)
+    .maybeSingle();
+
+  if (error) return { ok: false, error: explain(error.message) };
+  if (!data) return { ok: false, error: "That file no longer exists." };
+  return { ok: true, content: data.content, revision: data.revision };
+}
+
 export async function trashNode(
   kind: "folder" | "file",
   id: string,

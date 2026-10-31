@@ -2,6 +2,14 @@
 
 Companion to [SPEC.md](SPEC.md) v0.4. Sizing is relative: S ≈ a sitting, M ≈ a day, L ≈ more than a day.
 
+## Status
+
+Phases 0 to 11 are built. Phase 12 (ship) is not started: no deploy, no live crons, no Sentry DSN, no backups.
+
+Built outside the plan: the landing page at `/home`, the code runner (JavaScript, TypeScript, Python, SQL, HTML/CSS preview), the checks panel, resizable panes, the stop button, multi-select delete, and the per-language status map.
+
+Known gaps: no formatter for Go, Rust, SQL, Bash, Python or C++. Formatting exists for JavaScript, TypeScript, HTML and CSS.
+
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript, React 19

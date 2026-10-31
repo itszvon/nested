@@ -7,16 +7,25 @@ const MIN = 200;
 const MAX = 620;
 
 /**
- * The sidebar, resizable by dragging its right edge. The width is remembered
- * per device, like the expanded folders.
+ * The sidebar, resizable by dragging its right edge and, below the md
+ * breakpoint, a drawer opened by the header's files button.
  */
 export function SidebarShell({ children }: { children: React.ReactNode }) {
   const [width, setWidth] = useState(300);
+  const [open, setOpen] = useState(false);
   const dragging = useRef(false);
 
   useEffect(() => {
     const saved = Number(localStorage.getItem(KEY));
     if (Number.isFinite(saved) && saved >= MIN && saved <= MAX) setWidth(saved);
+  }, []);
+
+  useEffect(() => {
+    function toggle() {
+      setOpen((current) => !current);
+    }
+    window.addEventListener("nested:toggle-sidebar", toggle);
+    return () => window.removeEventListener("nested:toggle-sidebar", toggle);
   }, []);
 
   useEffect(() => {
@@ -47,23 +56,39 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
   }, [width]);
 
   return (
-    <div style={{ width }} className="relative flex shrink-0">
-      <aside className="h-full w-full overflow-y-auto border-r border-rule bg-panel/50">
-        {children}
-      </aside>
+    <>
+      {open ? (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 md:hidden"
+          onClick={() => setOpen(false)}
+        />
+      ) : null}
 
       <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize sidebar"
-        onPointerDown={(event) => {
-          dragging.current = true;
-          document.body.style.cursor = "col-resize";
-          document.body.style.userSelect = "none";
-          event.preventDefault();
-        }}
-        className="absolute -right-1 top-0 z-20 h-full w-2 cursor-col-resize hover:bg-accent/40"
-      />
-    </div>
+        style={{ width }}
+        className={[
+          "z-40 flex h-full max-w-[85vw] shrink-0 transition-transform duration-150 md:static md:max-w-none md:translate-x-0",
+          "fixed inset-y-0 left-0",
+          open ? "translate-x-0" : "-translate-x-full",
+        ].join(" ")}
+      >
+        <aside className="h-full w-full overflow-y-auto border-r border-rule bg-panel">
+          {children}
+        </aside>
+
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+          onPointerDown={(event) => {
+            dragging.current = true;
+            document.body.style.cursor = "col-resize";
+            document.body.style.userSelect = "none";
+            event.preventDefault();
+          }}
+          className="absolute -right-1 top-0 hidden h-full w-2 cursor-col-resize hover:bg-accent/40 md:block"
+        />
+      </div>
+    </>
   );
 }
