@@ -77,6 +77,13 @@ Values live in `.env.local`, which is gitignored. `.env.example` lists the names
 A `PGPASSWORD` environment variable is needed for `npm run db:check`; it is the
 database password, not an API key.
 
+## Live
+
+Production: https://nested-psi.vercel.app
+
+Deployed from `itszvon/nested` on Vercel, project `nested`. Every push to `master`
+builds and deploys. Supabase auth is configured with the production callback.
+
 ## Operations
 
 Honest state of each procedure, because a runbook that describes things that do

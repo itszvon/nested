@@ -7,9 +7,11 @@ Reviewer: the build agent. Not an independent auditor, not a penetration test, n
 
 ## Overall decision
 
-**NOT READY for a public production launch. Conditionally ready as a release candidate.**
+**CONDITIONALLY READY. Deployed and serving, with three P1 operational gaps that no code change closes.**
 
-The application code meets the applicable controls below. The launch is blocked by operational items that cannot be completed without a deployment and an owner decision: no deploy has happened, no backups exist, no monitoring alerts anyone, and account deletion has no implementation. Those are P1 items under this checklist, so READY is not available.
+The application is deployed at https://nested-psi.vercel.app and the smoke test below passed against it. Three P1 items remain: no backups, no alerting, no account deletion. Until those exist, anyone using the site is one bad migration or one dropped table away from losing their data with nobody notified, so READY is not available.
+
+Updated 31 October 2026 after the first production deployment.
 
 ## Phase 1 — Audit
 
@@ -124,3 +126,26 @@ The CSP has not been exercised in a browser. It is the item most likely to break
 ## What this review is not
 
 Not a penetration test, not a legal review, not an accessibility audit, not a restore test, not a production observation. Every PASS above rests on the evidence named next to it, in local development, on one machine, by the same agent that wrote the code.
+
+
+## Deployment, 31 October 2026
+
+Production: https://nested-psi.vercel.app
+Source: https://github.com/itszvon/nested, deployed from `master` by Vercel project `nested`.
+Build: deployment dpl_F7uJmimcdBSu3b5b26AZk2KPTi14, state READY, region iad1.
+
+Smoke test against production, run from this machine:
+
+| Check | Result |
+|---|---|
+| `/home`, `/login`, `/privacy`, `/terms`, `/security`, `/dmca`, `/copyright` | 200 |
+| `/robots.txt`, `/sitemap.xml` | 200, sitemap uses the production origin |
+| `/app` without a session | 307 to `/login` |
+| `/nope` | 404 |
+| Security headers | CSP, HSTS, nosniff, referrer, frame, permissions, COOP, COEP all present |
+| `/api/health` | `{"ok":true,"database":200}` |
+| OAuth handoff | Supabase returns a 302 to Google with the production callback accepted |
+
+Changed during deployment: project deployment protection disabled (it defaults to requiring a Vercel login on `*.vercel.app`), environment variables set for all three targets, Supabase `site_url` moved to the production domain with localhost and the preview alias kept in the allow list.
+
+Still unverified on production: signing in with a real Google account, the editor and runner in a browser, and the daily cron. The OAuth handoff is proven; the callback is not.
