@@ -47,3 +47,6 @@ next-env.d.ts
 # Secrets and personal notes
 IMPORTANT.md
 .env.local
+
+.vercel
+.env*
