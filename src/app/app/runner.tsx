@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RUNNER_WORKER_SOURCE } from "@/lib/runner-worker";
+import { LANGUAGE_INFO, languageLabel } from "@/lib/languages";
 
 /**
  * Runs a file, locally, inside a sandboxed iframe.
@@ -111,20 +112,6 @@ function cssDocument(code: string) {
 type ConsoleLine = { kind: "out" | "ask" | "in" | "err"; text: string };
 
 const SUPPORTED = new Set(["javascript", "python", "html", "css"]);
-
-const LANGUAGE_LABEL: Record<string, string> = {
-  java: "Java",
-  cpp: "C++",
-  typescript: "TypeScript",
-  go: "Go",
-  rust: "Rust",
-  sql: "SQL",
-  bash: "Bash",
-};
-
-function labelOf(language: string | null) {
-  return language ? LANGUAGE_LABEL[language] ?? language : "This file type";
-}
 
 export function RunnerPanel({
   language,
@@ -403,11 +390,14 @@ export function RunnerPanel({
 
       {!supported ? (
         <div className="px-4 py-4 text-[12px] leading-relaxed text-ink-dim">
-          <p className="text-ink">{labelOf(language)} does not run here.</p>
+          <p className="text-ink">{languageLabel(language)} does not run in Nested.</p>
           <p className="mt-1 text-ink-faint">
-            JavaScript and Python run in the browser; HTML and CSS get a preview. Every other
-            language is edited, coloured and checked. Running them would mean sending your code
-            to an outside service.
+            Run it with {LANGUAGE_INFO[language ?? ""]?.tool ?? "its own toolchain"} on your
+            machine and paste the result back here.
+          </p>
+          <p className="mt-1 text-ink-faint">
+            JavaScript and Python execute in the browser. HTML and CSS render a preview. Nothing
+            is sent anywhere.
           </p>
         </div>
       ) : preview ? (

@@ -13,6 +13,7 @@ import {
   getBuffer,
   setBuffer,
 } from "@/lib/buffers";
+import { languageLabel, languageStatus } from "@/lib/languages";
 import { removeBlankLines, tidyBlankLines } from "@/lib/whitespace";
 import { saveFile, saveProject, type SaveProjectItem } from "./actions";
 import { SaveProjectDialog, VersionHistoryDialog } from "./dialogs";
@@ -272,7 +273,9 @@ export function FilePane({
         </span>
 
         <span className="hidden shrink-0 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint md:inline">
-          {file.kind === "code" ? file.language : "text"}
+          {file.kind === "code"
+            ? `${languageLabel(file.language)}${languageStatus(file.language) === "external" ? " / external" : ""}`
+            : "text"}
         </span>
         <span className="hidden shrink-0 font-mono text-[10px] text-ink-faint md:inline">
           rev {revision}

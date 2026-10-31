@@ -15,17 +15,27 @@ import {
 } from "./actions";
 
 const LANGUAGES = [
-  { id: "python", label: "Python", ext: "py" },
-  { id: "javascript", label: "JavaScript", ext: "js" },
-  { id: "typescript", label: "TypeScript", ext: "ts" },
-  { id: "java", label: "Java", ext: "java" },
-  { id: "go", label: "Go", ext: "go" },
-  { id: "rust", label: "Rust", ext: "rs" },
-  { id: "cpp", label: "C++", ext: "cpp" },
-  { id: "sql", label: "SQL", ext: "sql" },
-  { id: "bash", label: "Bash", ext: "sh" },
-  { id: "htmlcss", label: "HTML/CSS", ext: "html" },
+  { id: "python", label: "Python", ext: "py", status: "runs" },
+  { id: "javascript", label: "JavaScript", ext: "js", status: "runs" },
+  { id: "htmlcss", label: "HTML/CSS", ext: "html", status: "preview" },
+  { id: "typescript", label: "TypeScript", ext: "ts", status: "external" },
+  { id: "java", label: "Java", ext: "java", status: "external" },
+  { id: "go", label: "Go", ext: "go", status: "external" },
+  { id: "rust", label: "Rust", ext: "rs", status: "external" },
+  { id: "cpp", label: "C++", ext: "cpp", status: "external" },
+  { id: "sql", label: "SQL", ext: "sql", status: "external" },
+  { id: "bash", label: "Bash", ext: "sh", status: "external" },
 ] as const;
+
+const TOOL: Record<string, string> = {
+  typescript: "tsc or node",
+  java: "a JDK",
+  go: "the go command",
+  rust: "cargo",
+  cpp: "a C++ compiler",
+  sql: "a database client",
+  bash: "a shell",
+};
 
 const EXT_LANGUAGE: Record<string, string> = {
   py: "python",
@@ -112,6 +122,7 @@ export function NewFileDialog({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectedLanguage = LANGUAGES.find((entry) => entry.id === language) ?? LANGUAGES[0];
 
   useEffect(() => inputRef.current?.focus(), []);
 
@@ -202,18 +213,33 @@ export function NewFileDialog({
         </div>
 
         {kind === "code" ? (
-          <select
-            value={language}
-            onChange={(event) => chooseLanguage(event.target.value as typeof language)}
-            aria-label="Language"
-            className={fieldClass}
-          >
-            {LANGUAGES.map((entry) => (
-              <option key={entry.id} value={entry.id} className="bg-panel">
-                {entry.label}
-              </option>
-            ))}
-          </select>
+          <div className="space-y-1.5">
+            <select
+              value={language}
+              onChange={(event) => chooseLanguage(event.target.value as typeof language)}
+              aria-label="Language"
+              className={fieldClass}
+            >
+              {LANGUAGES.map((entry) => (
+                <option key={entry.id} value={entry.id} className="bg-panel">
+                  {entry.label}
+                  {entry.status === "external"
+                    ? "  ·  external tool"
+                    : entry.status === "preview"
+                      ? "  ·  preview only"
+                      : "  ·  runs here"}
+                </option>
+              ))}
+            </select>
+
+            <p className="text-[11px] leading-relaxed text-ink-faint">
+              {selectedLanguage.status === "runs"
+                ? "Runs inside Nested."
+                : selectedLanguage.status === "preview"
+                  ? "HTML and CSS render as a preview. Nothing executes."
+                  : `Does not run in Nested. Use ${TOOL[selectedLanguage.id]} on your machine.`}
+            </p>
+          </div>
         ) : (
           <p className="text-[11px] leading-relaxed text-ink-faint">
             Plain text. No highlighting, no formatting, no preview.

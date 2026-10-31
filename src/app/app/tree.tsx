@@ -11,6 +11,7 @@ import {
 } from "@/lib/tree";
 import { renameNode, trashNode } from "./actions";
 import { TypeIcon } from "./icons";
+import { languageLabel as languageLabelOf } from "@/lib/languages";
 import { clearBuffers } from "@/lib/buffers";
 import {
   ConfirmDialog,
@@ -29,7 +30,7 @@ function formatBytes(bytes: number | undefined) {
 }
 
 function languageLabel(node: TreeNode) {
-  return node.type === "file" && node.kind === "code" ? node.language ?? "code" : "";
+  return node.type === "file" && node.kind === "code" ? languageLabelOf(node.language ?? null) : "";
 }
 
 function countSubtree(node: TreeNode) {
