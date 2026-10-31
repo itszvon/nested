@@ -691,9 +691,9 @@ export async function confirmUsernameChange(code: string): Promise<ActionResult>
 }
 
 /**
- * Starts an email change. Supabase emails the new address; nothing changes
- * until that link is opened. No address is typed twice: the mailbox is the
- * proof, not a string match.
+ * Starts an email change. Supabase emails the new address; the pending
+ * address is kept here so the code the user types can be checked against the
+ * address it was sent to.
  */
 export async function changeEmail(newEmail: string): Promise<ActionResult> {
   const user = await requireUser();
@@ -708,14 +708,76 @@ export async function changeEmail(newEmail: string): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
-  const origin = requestOrigin(await headers());
-  const { error } = await supabase.auth.updateUser(
-    { email: next },
-    { emailRedirectTo: `${origin}/auth/callback?next=/settings` },
-  );
 
-  if (error) return { ok: false, error: mailFailure(error.message) };
+  await supabase
+    .from("profile_change_requests")
+    .delete()
+    .eq("owner_id", user.id)
+    .eq("purpose", "email");
 
+  const { data: request, error: insertError } = await supabase
+    .from("profile_change_requests")
+    .insert({ owner_id: user.id, purpose: "email", payload: { email: next } })
+    .select("id")
+    .single();
+
+  if (insertError) return { ok: false, error: explain(insertError.message) };
+
+  const { error } = await supabase.auth.updateUser({ email: next });
+
+  if (error) {
+    await supabase.from("profile_change_requests").delete().eq("id", request.id);
+    return { ok: false, error: mailFailure(error.message) };
+  }
+
+  return { ok: true };
+}
+
+/** Applies the email change once the code sent to the new address checks out. */
+export async function confirmEmailChange(code: string): Promise<ActionResult> {
+  const user = await requireUser();
+  const token = code.replace(/\s+/g, "");
+
+  if (!/^\d{6,8}$/.test(token)) {
+    return { ok: false, error: "That code does not look right. Use the digits from the email." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: request } = await supabase
+    .from("profile_change_requests")
+    .select("id, payload, expires_at")
+    .eq("owner_id", user.id)
+    .eq("purpose", "email")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!request) return { ok: false, error: "No email change is waiting. Start again." };
+
+  const email = (request.payload as { email?: string } | null)?.email ?? "";
+  if (!email) return { ok: false, error: "No email change is waiting. Start again." };
+
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: "email_change",
+  });
+
+  if (error) {
+    if (/expired|invalid|incorrect/i.test(error.message)) {
+      return { ok: false, error: "That code is wrong or has expired. Send a new one." };
+    }
+    return { ok: false, error: `That code could not be checked: ${error.message}` };
+  }
+
+  // The address is proven now, so the display copy follows it immediately
+  // instead of waiting for the session token to be refreshed.
+  await supabase.from("profiles").update({ email }).eq("id", user.id);
+  await supabase.from("profile_change_requests").delete().eq("id", request.id);
+
+  revalidatePath("/app");
+  revalidatePath("/settings");
   return { ok: true };
 }
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FONT_SIZES, type EditorSettings } from "@/lib/settings";
 import {
   changeEmail,
+  confirmEmailChange,
   confirmUsernameChange,
   deleteAccount,
   exportAccountData,
@@ -75,6 +76,9 @@ export function SettingsForm({
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailNotice, setEmailNotice] = useState<string | null>(null);
+  const [emailStage, setEmailStage] = useState<"edit" | "code">("edit");
+  const [emailCode, setEmailCode] = useState("");
+  const [emailConfirmBusy, setEmailConfirmBusy] = useState(false);
 
   const [prefs, setPrefs] = useState<EditorSettings>(settings);
   const [prefsState, setPrefsState] = useState<"idle" | "saving" | "saved">("idle");
@@ -184,10 +188,28 @@ export function SettingsForm({
       return;
     }
 
-    setEmailNotice(
-      `Confirmation sent to ${emailNext.trim()}. Open the link there to finish the change.`,
-    );
+    setEmailStage("code");
+    setEmailCode("");
+    setEmailNotice(`Code sent to ${emailNext.trim()}. Enter it below to finish.`);
+  }
+
+  async function confirmEmail() {
+    setEmailConfirmBusy(true);
+    setEmailError(null);
+    const result = await confirmEmailChange(emailCode);
+    setEmailConfirmBusy(false);
+
+    if (!result.ok) {
+      setEmailError(result.error);
+      return;
+    }
+
+    setEmailPanel(false);
+    setEmailStage("edit");
+    setEmailCode("");
     setEmailNext("");
+    setEmailNotice("Email updated.");
+    router.refresh();
   }
 
   async function savePrefs(next: EditorSettings) {
@@ -406,45 +428,98 @@ export function SettingsForm({
 
             {emailPanel ? (
               <div className="mt-2 border border-rule p-3">
-                <p className="text-[11px] leading-relaxed text-ink-faint">
-                  The new address gets a link. The change finishes only after that link is
-                  opened.
-                </p>
-                <input
-                  type="email"
-                  value={emailNext}
-                  onChange={(event) => setEmailNext(event.target.value)}
-                  placeholder="New email"
-                  autoComplete="off"
-                  className={`${field} mt-2`}
-                />
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void startEmailChange()}
-                    disabled={emailBusy || emailNext.trim() === ""}
-                    className={primary}
-                  >
-                    {emailBusy ? "Sending" : "Send confirmation"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEmailPanel(false);
-                      setEmailNext("");
-                      setEmailError(null);
-                    }}
-                    className={secondary}
-                  >
-                    Cancel
-                  </button>
-                </div>
+                {emailStage === "edit" ? (
+                  <>
+                    <p className="text-[11px] leading-relaxed text-ink-faint">
+                      The new address gets a six-digit code. The change finishes only after you
+                      enter that code here.
+                    </p>
+                    <input
+                      type="email"
+                      value={emailNext}
+                      onChange={(event) => setEmailNext(event.target.value)}
+                      placeholder="New email"
+                      autoComplete="off"
+                      className={`${field} mt-2`}
+                    />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void startEmailChange()}
+                        disabled={emailBusy || emailNext.trim() === ""}
+                        className={primary}
+                      >
+                        {emailBusy ? "Sending" : "Send code"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmailPanel(false);
+                          setEmailNext("");
+                          setEmailError(null);
+                        }}
+                        className={secondary}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[11px] leading-relaxed text-ink-faint">
+                      Enter the code sent to {emailNext.trim() || "the new address"}.
+                    </p>
+                    <input
+                      value={emailCode}
+                      onChange={(event) => {
+                        setEmailCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 8));
+                        setEmailError(null);
+                      }}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="123456"
+                      className={`${field} mt-2 font-mono tracking-[0.3em]`}
+                    />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void confirmEmail()}
+                        disabled={emailConfirmBusy || emailCode.length < 6}
+                        className={primary}
+                      >
+                        {emailConfirmBusy ? "Checking" : "Confirm change"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void startEmailChange()}
+                        disabled={emailBusy}
+                        className={secondary}
+                      >
+                        {emailBusy ? "Sending" : "Send again"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmailPanel(false);
+                          setEmailStage("edit");
+                          setEmailCode("");
+                          setEmailError(null);
+                        }}
+                        className={secondary}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <button
                 type="button"
                 onClick={() => {
                   setEmailPanel(true);
+                  setEmailStage("edit");
+                  setEmailCode("");
                   setEmailError(null);
                   setEmailNotice(null);
                 }}
