@@ -77,6 +77,13 @@ Values live in `.env.local`, which is gitignored. `.env.example` lists the names
 A `PGPASSWORD` environment variable is needed for `npm run db:check`; it is the
 database password, not an API key.
 
+## Settings
+
+`/settings` holds the profile picture, display name, editor preferences (tab size,
+font size, wrapping, line numbers), storage usage, a JSON export of everything,
+and account deletion. Preferences live in `profiles.settings` and follow the
+account across devices.
+
 ## Live
 
 Production: https://nested-psi.vercel.app

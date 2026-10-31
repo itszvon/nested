@@ -36,14 +36,16 @@ import {
 } from "@codemirror/lint";
 import { StreamLanguage, syntaxTree } from "@codemirror/language";
 import { heuristicFindings } from "@/lib/checks";
+import type { EditorSettings } from "@/lib/settings";
 
-const ledgerTheme = EditorView.theme(
+function makeTheme(fontSize: number) {
+  return EditorView.theme(
   {
     "&": {
       backgroundColor: "transparent",
       color: "var(--color-ink)",
       height: "100%",
-      fontSize: "13px",
+      fontSize: `${fontSize}px`,
     },
     ".cm-scroller": {
       fontFamily: "var(--font-mono)",
@@ -90,7 +92,8 @@ const ledgerTheme = EditorView.theme(
     },
   },
   { dark: true },
-);
+  );
+}
 
 async function loadLanguage(language: string | null): Promise<Extension[]> {
   switch (language) {
@@ -164,6 +167,7 @@ export function CodeEditor({
   kind,
   language,
   initialText,
+  settings,
   onChange,
   onView,
   onDiagnostics,
@@ -171,6 +175,7 @@ export function CodeEditor({
   kind: "markdown" | "code";
   language: string | null;
   initialText: string;
+  settings: EditorSettings;
   onChange: (text: string) => void;
   onView: (view: EditorView | null) => void;
   onDiagnostics?: (count: number) => void;
@@ -202,7 +207,8 @@ export function CodeEditor({
         highlightActiveLine(),
         highlightSelectionMatches(),
         syntaxHighlighting(oneDarkHighlightStyle),
-        ledgerTheme,
+        makeTheme(settings.fontSize),
+        EditorState.tabSize.of(settings.tabSize),
         keymap.of([
           ...closeBracketsKeymap,
           ...defaultKeymap,
@@ -215,8 +221,13 @@ export function CodeEditor({
         // Text files are plain: wrapping on, no gutter, no folding, no
         // highlighting. Code files get the full instrument panel.
         ...(isCode
-          ? [lineNumbers(), highlightActiveLineGutter(), foldGutter()]
+          ? [
+              ...(settings.lineNumbers ? [lineNumbers()] : []),
+              highlightActiveLineGutter(),
+              foldGutter(),
+            ]
           : [EditorView.lineWrapping]),
+        ...(settings.wordWrap ? [EditorView.lineWrapping] : []),
         ...(isCode ? [lintGutter(), buildLinter(language)] : []),
         languageSlot.current.of([]),
         EditorView.updateListener.of((update) => {

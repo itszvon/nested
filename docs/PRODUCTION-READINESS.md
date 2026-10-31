@@ -7,9 +7,9 @@ Reviewer: the build agent. Not an independent auditor, not a penetration test, n
 
 ## Overall decision
 
-**CONDITIONALLY READY. Deployed and serving, with three P1 operational gaps that no code change closes.**
+**CONDITIONALLY READY. Deployed and serving, with two P1 operational gaps that no code change closes.**
 
-The application is deployed at https://nested-psi.vercel.app and the smoke test below passed against it. Three P1 items remain: no backups, no alerting, no account deletion. Until those exist, anyone using the site is one bad migration or one dropped table away from losing their data with nobody notified, so READY is not available.
+The application is deployed at https://nested-psi.vercel.app and the smoke test below passed against it. Two P1 items remain: no backups, no alerting. Until those exist, anyone using the site is one bad migration or one dropped table away from losing their data with nobody notified, so READY is not available.
 
 Updated 31 October 2026 after the first production deployment.
 
@@ -31,7 +31,7 @@ Not verified, because the tooling is absent: browser rendering, screen reader be
 | SEC-001 | Headers | Only COOP and COEP were set. No CSP, no nosniff, no referrer policy, no frame protection, no Permissions-Policy | P1 | Fixed |
 | SEC-002 | Routing | The proxy allow-listed public paths, so any unlisted path redirected to `/login`. `robots.txt`, `sitemap.xml` and every 404 were unreachable | P2 | Fixed |
 | SEC-003 | Routing | Protection was expressed as an allow-list, which means a future public route defaults to protected but a typo defaults to open | P2 | Fixed: protected prefixes |
-| SEC-004 | Accounts | No account deletion. Privacy policy would otherwise promise something the product cannot do | P1 | Blocked: needs a service-role key |
+| SEC-004 | Accounts | No account deletion | P1 | Fixed: definer function deletes only the caller's auth row, no service key in the app |
 | SEC-005 | Abuse | No rate limiting on server actions. Supabase applies its own limits to auth; storage quota and the 2 MB file cap bound write abuse | P2 | Accepted, documented |
 | SEC-006 | Dependencies | 5 moderate advisories, all transitive through Sentry's glob/minimatch. The suggested fix is a breaking Sentry downgrade | P3 | Accepted |
 | PRIV-001 | Legal | No privacy policy, despite collecting an email address and user content | P1 | Fixed |
@@ -107,7 +107,7 @@ The CSP has not been exercised in a browser. It is the item most likely to break
 
 | Item | Status | Next action |
 |---|---|---|
-| Account deletion | Blocked | Owner adds a server-side service-role key, then implement deletion with cascade |
+| Account deletion | Fixed | `/settings`, confirmed by a db-check that deletes a throwaway account and verifies folders and files vanish |
 | Backups and restore | Blocked | Deploy, choose a storage target, schedule a dump, perform one restore into a scratch project |
 | Monitoring and alerting | Blocked | Sentry DSN, external monitor on `/api/health`, alert routing to the operator |
 | Rate limiting | Accepted | Revisit if the service is exposed publicly beyond a small group |

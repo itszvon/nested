@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BackToTop } from "./back-to-top";
+import { NestingDemo, VersionScrubber } from "./archive-demo";
 import { connection } from "next/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getCurrentUser } from "@/lib/supabase/server";
@@ -230,6 +231,25 @@ export default async function LandingPage() {
 
           <div className="mt-16">
             <ProductMock />
+          </div>
+        </section>
+
+
+        <section className="border-t border-rule">
+          <div className="mx-auto grid max-w-6xl gap-6 px-6 py-16 sm:grid-cols-2">
+            <div>
+              <VersionScrubber />
+              <p className="mt-3 text-[12px] leading-relaxed text-ink-faint">
+                Drag through five saves of the same function. This is the shape of the version list
+                inside the app.
+              </p>
+            </div>
+            <div>
+              <NestingDemo />
+              <p className="mt-3 text-[12px] leading-relaxed text-ink-faint">
+                Add folders until you get bored. There is no depth limit in the product either.
+              </p>
+            </div>
           </div>
         </section>
 

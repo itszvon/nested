@@ -186,23 +186,32 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar: string | null
           created_at: string
+          display_name: string | null
           email: string | null
           id: string
+          settings: Json
           storage_bytes: number
           username: string
         }
         Insert: {
+          avatar?: string | null
           created_at?: string
+          display_name?: string | null
           email?: string | null
           id: string
+          settings?: Json
           storage_bytes?: number
           username: string
         }
         Update: {
+          avatar?: string | null
           created_at?: string
+          display_name?: string | null
           email?: string | null
           id?: string
+          settings?: Json
           storage_bytes?: number
           username?: string
         }
@@ -322,6 +331,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_my_account: { Args: never; Returns: undefined }
       empty_trash: { Args: never; Returns: number }
       move_node: {
         Args: {

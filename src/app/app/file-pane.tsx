@@ -15,6 +15,7 @@ import {
 } from "@/lib/buffers";
 import { formatCode, FORMATTABLE } from "@/lib/format";
 import { languageLabel, languageStatus } from "@/lib/languages";
+import type { EditorSettings } from "@/lib/settings";
 import { RUNNER_ENABLED } from "@/lib/site";
 import { removeBlankLines, tidyBlankLines } from "@/lib/whitespace";
 import { getFileSnapshot, saveFile, saveProject, type SaveProjectItem } from "./actions";
@@ -40,10 +41,12 @@ function timeOf(iso: string) {
 export function FilePane({
   file,
   userId,
+  settings,
   openVersions = false,
 }: {
   file: OpenFile;
   userId: string;
+  settings: EditorSettings;
   openVersions?: boolean;
 }) {
   const router = useRouter();
@@ -575,6 +578,7 @@ export function FilePane({
           kind={file.kind}
           language={file.language}
           initialText={text}
+          settings={settings}
           onChange={handleChange}
           onView={(view) => {
             viewRef.current = view;

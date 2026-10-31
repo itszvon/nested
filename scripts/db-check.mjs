@@ -458,6 +458,44 @@ async function main() {
     `sum=${actual.total} recorded=${recorded.storage_bytes}`,
   );
 
+  console.log("\naccount deletion");
+  await client.query("delete from auth.users where email = 'check-del@example.com'");
+  const doomed = (
+    await client.query(
+      `insert into auth.users (id, email, email_confirmed_at, created_at, updated_at, aud, role)
+       values (gen_random_uuid(), 'check-del@example.com', now(), now(), now(), 'authenticated', 'authenticated')
+       returning id`,
+    )
+  ).rows[0].id;
+
+  await asUser(doomed, async () => {
+    const folder = (
+      await one("insert into public.folders (owner_id, name) values ($1,'doomed') returning id", [doomed])
+    ).id;
+    await client.query(
+      `insert into public.files (owner_id, folder_id, name, kind, content)
+       values ($1,$2,'a.py','code','x = 1')`,
+      [doomed, folder],
+    );
+    await client.query(
+      "select public.save_file((select id from public.files where owner_id = $1 limit 1), 'x = 2', 1)",
+      [doomed],
+    );
+    await client.query("select public.delete_my_account()");
+  });
+
+  const gone = await client.query("select count(*)::int as n from auth.users where id = $1", [doomed]);
+  const leftovers = await client.query(
+    "select (select count(*) from public.folders where owner_id = $1) as f, (select count(*) from public.files where owner_id = $1) as g",
+    [doomed],
+  );
+  ok("delete_my_account removes the auth user", gone.rows[0].n === 0);
+  ok(
+    "delete_my_account removes folders and files",
+    Number(leftovers.rows[0].f) === 0 && Number(leftovers.rows[0].g) === 0,
+    `folders=${leftovers.rows[0].f} files=${leftovers.rows[0].g}`,
+  );
+
   console.log("\nanonymous access");
   await client.query("begin");
   await client.query("set local role anon");

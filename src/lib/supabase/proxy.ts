@@ -9,7 +9,7 @@ import { readSupabaseEnv } from "@/lib/env";
  * out, which meant 404s, robots.txt and sitemap.xml never resolved. Only /app
  * is private; everything else is either public or genuinely missing.
  */
-const PROTECTED_PREFIXES = ["/app"];
+const PROTECTED_PREFIXES = ["/app", "/settings"];
 
 function isProtected(pathname: string) {
   return PROTECTED_PREFIXES.some(

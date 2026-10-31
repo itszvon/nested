@@ -5,6 +5,8 @@ import { connection } from "next/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getFile } from "@/lib/files";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { readSettings } from "@/lib/settings";
+import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceRows } from "@/lib/workspace";
 import { signOut } from "./actions";
 import { FilePane } from "./file-pane";
@@ -31,10 +33,15 @@ export default async function AppPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [{ folders, files }, params] = await Promise.all([
+  const supabase = await createClient();
+
+  const [{ folders, files }, params, profile] = await Promise.all([
     getWorkspaceRows(),
     searchParams,
+    supabase.from("profiles").select("display_name, avatar, settings").maybeSingle(),
   ]);
+
+  const settings = readSettings(profile.data?.settings);
 
   const selectedId = params.f ?? null;
   const openFile = selectedId ? await getFile(selectedId) : null;
@@ -57,9 +64,25 @@ export default async function AppPage({
         </span>
 
         <div className="ml-auto flex items-center gap-3">
-          <span className="hidden max-w-[220px] truncate font-mono text-[10px] text-ink-faint sm:inline">
-            {user.email}
+          <Link
+            href="/settings"
+            className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint hover:text-ink"
+          >
+            settings
+          </Link>
+
+          <span className="hidden max-w-[200px] truncate font-mono text-[10px] text-ink-faint sm:inline">
+            {profile.data?.display_name ?? user.email}
           </span>
+
+          {profile.data?.avatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.data.avatar}
+              alt=""
+              className="h-6 w-6 border border-rule object-cover"
+            />
+          ) : null}
           <form action={signOut}>
             <button
               type="submit"
@@ -81,6 +104,7 @@ export default async function AppPage({
             key={`${openFile.id}:${params.r ?? "0"}`}
             file={openFile}
             userId={user.id}
+            settings={settings}
             openVersions={params.versions === "1"}
           />
         ) : (

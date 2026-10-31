@@ -77,7 +77,8 @@ async function requireUser() {
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/login");
+  // Back to the public page, not the sign-in form.
+  redirect("/home");
 }
 
 export async function createFolder(
@@ -461,6 +462,130 @@ export async function getFileSnapshot(
   if (error) return { ok: false, error: explain(error.message) };
   if (!data) return { ok: false, error: "That file no longer exists." };
   return { ok: true, content: data.content, revision: data.revision };
+}
+
+
+export type ProfileSummary = {
+  username: string;
+  email: string | null;
+  displayName: string | null;
+  avatar: string | null;
+  settings: unknown;
+};
+
+export async function getProfile(): Promise<
+  { ok: true; profile: ProfileSummary } | { ok: false; error: string }
+> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("username, email, display_name, avatar, settings")
+    .maybeSingle();
+
+  if (error) return { ok: false, error: explain(error.message) };
+  if (!data) return { ok: false, error: "No profile found." };
+
+  return {
+    ok: true,
+    profile: {
+      username: data.username,
+      email: data.email,
+      displayName: data.display_name,
+      avatar: data.avatar,
+      settings: data.settings,
+    },
+  };
+}
+
+export async function updateProfile(input: {
+  displayName: string;
+  avatar: string | null;
+}): Promise<ActionResult> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const displayName = input.displayName.trim().slice(0, 60);
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      display_name: displayName || null,
+      avatar: input.avatar,
+    })
+    .eq("id", (await requireUser()).id);
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+export async function updateEditorSettings(settings: unknown): Promise<ActionResult> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ settings })
+    .eq("id", user.id);
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+export async function exportAccountData(): Promise<
+  { ok: true; json: string } | { ok: false; error: string }
+> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const [folders, files, versions] = await Promise.all([
+    supabase.from("folders").select("id, parent_id, name, sort_order, created_at"),
+    supabase
+      .from("files")
+      .select("id, folder_id, name, kind, language, content, revision, created_at, updated_at")
+      .is("deleted_at", null),
+    supabase.from("versions").select("file_id, source, label, content, created_at").limit(5000),
+  ]);
+
+  const failure = folders.error ?? files.error ?? versions.error;
+  if (failure) return { ok: false, error: explain(failure.message) };
+
+  return {
+    ok: true,
+    json: JSON.stringify(
+      {
+        exported_at: new Date().toISOString(),
+        folders: folders.data ?? [],
+        files: files.data ?? [],
+        versions: versions.data ?? [],
+      },
+      null,
+      2,
+    ),
+  };
+}
+
+/**
+ * Deletes the signed-in account and everything belonging to it. The database
+ * function runs as the table owner because deleting an auth user needs that
+ * privilege, and it only ever touches the caller's own row.
+ */
+export async function deleteAccount(): Promise<ActionResult> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc("delete_my_account");
+  if (error) return { ok: false, error: explain(error.message) };
+
+  await supabase.auth.signOut();
+  return { ok: true };
 }
 
 export async function trashNode(
