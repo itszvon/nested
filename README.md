@@ -61,6 +61,38 @@ Open http://localhost:3000.
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run lint` | ESLint |
 
+
+## Environment variables
+
+| Name | Required | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | yes | Browser-safe API key |
+| `NEXT_PUBLIC_SITE_URL` | production | Canonical origin used by the sitemap and legal pages |
+| `NEXT_PUBLIC_SENTRY_DSN` | optional | Browser error reporting; no-op when absent |
+| `SENTRY_DSN` | optional | Server error reporting |
+
+Values live in `.env.local`, which is gitignored. `.env.example` lists the names only.
+
+A `PGPASSWORD` environment variable is needed for `npm run db:check`; it is the
+database password, not an API key.
+
+## Operations
+
+Honest state of each procedure, because a runbook that describes things that do
+not exist is worse than no runbook.
+
+| Procedure | State |
+|---|---|
+| Local setup | Works, see above |
+| Migrations | `npx supabase db push` against the linked project. Two-step when adding enum values, see [docs/adding-a-language.md](docs/adding-a-language.md) |
+| Production deploy | Not performed. `/home` must be in the Supabase redirect allow list and `NEXT_PUBLIC_SITE_URL` set before the first deploy |
+| Backups | Not implemented. Supabase free tier has none; a nightly logical dump is planned and not built |
+| Restore | Untested. Requires the backup that does not exist yet |
+| Monitoring | `/api/health` is wired and returns 200; no external monitor alerts anyone yet |
+| Error reporting | Sentry code present, no DSN configured, nothing sent |
+| Incident response | Not documented. Single operator |
+
 ## What exists so far
 
 Phase 0 only: authentication, the route gate, and a placeholder shell.

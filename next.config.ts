@@ -1,8 +1,53 @@
 import type { NextConfig } from "next";
 
+const isProduction = process.env.NODE_ENV === "production";
+
+/**
+ * Content Security Policy.
+ *
+ * `unsafe-eval` is required: the code runner executes user programs with
+ * `eval` inside a worker, and workers inherit the document policy. `blob:` is
+ * required for the same reason and for Pyodide's worker bootstrap. The CDN
+ * entries cover Pyodide, Prettier and sql.js, which are loaded on demand.
+ *
+ * Tighten this if the runner is ever removed.
+ */
+const csp = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self' blob: https://*.supabase.co https://cdn.jsdelivr.net",
+  "worker-src 'self' blob:",
+  "frame-src 'self' blob: data:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self' https://accounts.google.com",
+  "frame-ancestors 'none'",
+  "upgrade-insecure-requests",
+].join("; ");
+
+const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+  // Cross-origin isolation: required for SharedArrayBuffer, which is the only
+  // way a browser can block Python on typed input.
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+  // Only meaningful over HTTPS, so it is not sent by the dev server.
+  ...(isProduction
+    ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }]
+    : []),
+];
+
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  poweredByHeader: false,
   experimental: {
     serverActions: {
       // Default is 1 MB. A 2 MB file becomes ~2.2 MB of JSON plus overhead,
@@ -11,19 +56,8 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4mb",
     },
   },
-  // Cross-origin isolation. Required for SharedArrayBuffer, which is the only
-  // way a browser can block Python on typed input. Everything loaded as a
-  // subresource must therefore be CORS-enabled, which the Pyodide CDN is.
   async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: [
-          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
-        ],
-      },
-    ];
+    return [{ source: "/(.*)", headers: securityHeaders }];
   },
   turbopack: {
     rules: {

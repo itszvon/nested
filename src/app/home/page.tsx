@@ -274,6 +274,20 @@ export default async function LandingPage() {
           <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-faint">
             Nested
           </span>
+          <nav className="flex items-center gap-5 sm:ml-auto">
+            <Link
+              href="/privacy"
+              className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:text-ink"
+            >
+              Privacy
+            </Link>
+            <Link
+              href="/terms"
+              className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:text-ink"
+            >
+              Terms
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>

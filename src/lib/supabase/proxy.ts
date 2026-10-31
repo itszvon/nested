@@ -2,13 +2,18 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { readSupabaseEnv } from "@/lib/env";
 
-// "/" redirects to /home or /app; /home is the public landing page and stays
-// reachable to signed-in visitors too.
-const PUBLIC_PATHS = ["/", "/home", "/login", "/auth", "/api/health"];
+/**
+ * Protect by prefix rather than by listing public paths.
+ *
+ * The allow-list version redirected every unknown path to /login when signed
+ * out, which meant 404s, robots.txt and sitemap.xml never resolved. Only /app
+ * is private; everything else is either public or genuinely missing.
+ */
+const PROTECTED_PREFIXES = ["/app"];
 
-function isPublic(pathname: string) {
-  return PUBLIC_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
+function isProtected(pathname: string) {
+  return PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
 }
 
@@ -47,7 +52,7 @@ export async function updateSession(request: NextRequest) {
   const signedIn = Boolean(data?.claims?.sub);
   const { pathname } = request.nextUrl;
 
-  if (!signedIn && !isPublic(pathname)) {
+  if (!signedIn && isProtected(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
