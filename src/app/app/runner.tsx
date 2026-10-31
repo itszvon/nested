@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { PYTHON_WORKER_SOURCE } from "@/lib/python-worker";
 
 /**
  * Runs a file, locally, inside a sandboxed iframe.
@@ -128,6 +129,20 @@ export function RunnerPanel({
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const consoleRef = useRef<HTMLDivElement | null>(null);
 
+  // Inline stdin: available only when the page is cross-origin isolated, which
+  // is what makes SharedArrayBuffer and Atomics.wait legal.
+  const [isolated, setIsolated] = useState(false);
+  const [awaiting, setAwaiting] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const workerRef = useRef<Worker | null>(null);
+  const controlRef = useRef<Int32Array | null>(null);
+  const bufferRef = useRef<SharedArrayBuffer | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setIsolated(window.crossOriginIsolated === true);
+  }, []);
+
   const supported = language !== null && SUPPORTED.has(language);
   const preview = language === "html" || language === "css";
 
@@ -189,6 +204,76 @@ export function RunnerPanel({
     const element = consoleRef.current;
     if (element) element.scrollTop = element.scrollHeight;
   }, [lines]);
+
+  useEffect(() => {
+    if (awaiting) inputRef.current?.focus();
+  }, [awaiting]);
+
+  // Worker runtime for Python. It blocks on Atomics.wait for input instead of
+  // opening a browser dialog.
+  useEffect(() => {
+    if (language !== "python" || !supported || !isolated) return;
+
+    const control = new Int32Array(new SharedArrayBuffer(8));
+    const buffer = new SharedArrayBuffer(8192);
+    controlRef.current = control;
+    bufferRef.current = buffer;
+
+    const blob = new Blob([PYTHON_WORKER_SOURCE], { type: "text/javascript" });
+    const url = URL.createObjectURL(blob);
+    const worker = new Worker(url);
+    workerRef.current = worker;
+
+    worker.onmessage = (event: MessageEvent) => {
+      const data = event.data ?? {};
+
+      if (data.type === "out" || data.type === "status") {
+        setLines((current) => [...current, { kind: "out", text: String(data.text) }]);
+        bumpIdle();
+      } else if (data.type === "input") {
+        setLines((current) => [...current, { kind: "ask", text: String(data.text) }]);
+        setAwaiting(true);
+        bumpIdle();
+      } else if (data.type === "done") {
+        setStatus("done");
+        setAwaiting(false);
+      } else if (data.type === "error") {
+        setLines((current) => [...current, { kind: "err", text: String(data.text) }]);
+        setStatus("done");
+        setAwaiting(false);
+      }
+    };
+
+    worker.postMessage({ type: "init", control: control.buffer, buffer });
+    worker.postMessage({ type: "run", code });
+
+    return () => {
+      worker.terminate();
+      workerRef.current = null;
+      URL.revokeObjectURL(url);
+      setAwaiting(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId, language, supported, isolated]);
+
+  function submitAnswer() {
+    const control = controlRef.current;
+    const buffer = bufferRef.current;
+    if (!control || !buffer) return;
+
+    const bytes = new TextEncoder().encode(`${answer}\n`);
+    const view = new Uint8Array(buffer, 0, Math.min(bytes.length, buffer.byteLength));
+    view.set(bytes.subarray(0, view.length));
+
+    Atomics.store(control, 1, view.length);
+    Atomics.store(control, 0, 2);
+    Atomics.notify(control, 0);
+
+    setLines((current) => [...current, { kind: "in", text: answer }]);
+    setAnswer("");
+    setAwaiting(false);
+    bumpIdle();
+  }
 
   const document_ = supported
     ? language === "javascript"
@@ -269,16 +354,38 @@ export function RunnerPanel({
                 {line.kind === "in" ? `> ${line.text}` : line.text}
               </p>
             ))}
-            {status === "running" ? <p className="text-ink-faint">▌</p> : null}
+            {awaiting ? (
+              <div className="flex items-center gap-1">
+                <span className="text-accent">&gt;</span>
+                <input
+                  ref={inputRef}
+                  value={answer}
+                  onChange={(event) => setAnswer(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      submitAnswer();
+                    }
+                  }}
+                  aria-label="Program input"
+                  className="min-w-0 flex-1 border-0 bg-transparent text-ink caret-accent outline-none"
+                />
+              </div>
+            ) : null}
+            {status === "running" && !awaiting ? (
+              <p className="text-ink-faint">▌</p>
+            ) : null}
           </div>
-          <iframe
-            key={runId}
-            title="Runner"
-            sandbox="allow-scripts allow-modals"
-            referrerPolicy="no-referrer"
-            srcDoc={document_ ?? ""}
-            className="hidden h-0 w-0"
-          />
+          {language === "python" && isolated ? null : (
+            <iframe
+              key={runId}
+              title="Runner"
+              sandbox="allow-scripts allow-modals"
+              referrerPolicy="no-referrer"
+              srcDoc={document_ ?? ""}
+              className="hidden h-0 w-0"
+            />
+          )}
         </div>
       )}
     </div>

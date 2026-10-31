@@ -11,6 +11,20 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4mb",
     },
   },
+  // Cross-origin isolation. Required for SharedArrayBuffer, which is the only
+  // way a browser can block Python on typed input. Everything loaded as a
+  // subresource must therefore be CORS-enabled, which the Pyodide CDN is.
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+        ],
+      },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {
