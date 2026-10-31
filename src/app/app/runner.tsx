@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PYTHON_WORKER_SOURCE } from "@/lib/python-worker";
+import { RUNNER_WORKER_SOURCE } from "@/lib/runner-worker";
 
 /**
  * Runs a file, locally, inside a sandboxed iframe.
@@ -145,6 +145,10 @@ export function RunnerPanel({
 
   const supported = language !== null && SUPPORTED.has(language);
   const preview = language === "html" || language === "css";
+  // Both scriptable languages run in the worker once isolation is available,
+  // so prompt() and input() both block inline instead of opening a dialog.
+  const usesWorker =
+    isolated && (language === "python" || language === "javascript");
 
   /**
    * Idle timeout, not wall-clock: interactive scripts that keep producing
@@ -212,14 +216,14 @@ export function RunnerPanel({
   // Worker runtime for Python. It blocks on Atomics.wait for input instead of
   // opening a browser dialog.
   useEffect(() => {
-    if (language !== "python" || !supported || !isolated) return;
+    if (!usesWorker) return;
 
     const control = new Int32Array(new SharedArrayBuffer(8));
     const buffer = new SharedArrayBuffer(8192);
     controlRef.current = control;
     bufferRef.current = buffer;
 
-    const blob = new Blob([PYTHON_WORKER_SOURCE], { type: "text/javascript" });
+    const blob = new Blob([RUNNER_WORKER_SOURCE], { type: "text/javascript" });
     const url = URL.createObjectURL(blob);
     const worker = new Worker(url);
     workerRef.current = worker;
@@ -245,7 +249,7 @@ export function RunnerPanel({
     };
 
     worker.postMessage({ type: "init", control: control.buffer, buffer });
-    worker.postMessage({ type: "run", code });
+    worker.postMessage({ type: "run", code, language });
 
     return () => {
       worker.terminate();
@@ -254,7 +258,7 @@ export function RunnerPanel({
       setAwaiting(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, language, supported, isolated]);
+  }, [runId, language, usesWorker]);
 
   function submitAnswer() {
     const control = controlRef.current;
@@ -376,7 +380,7 @@ export function RunnerPanel({
               <p className="text-ink-faint">▌</p>
             ) : null}
           </div>
-          {language === "python" && isolated ? null : (
+          {usesWorker ? null : (
             <iframe
               key={runId}
               title="Runner"
