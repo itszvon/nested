@@ -2,8 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { readSupabaseEnv } from "@/lib/env";
 
-// "/" is the public landing page; it redirects signed-in visitors to the app.
-const PUBLIC_PATHS = ["/", "/login", "/auth", "/api/health"];
+// "/" redirects to /home or /app; /home is the public landing page and stays
+// reachable to signed-in visitors too.
+const PUBLIC_PATHS = ["/", "/home", "/login", "/auth", "/api/health"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some(

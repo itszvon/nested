@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { isSupabaseConfigured } from "@/lib/env";
@@ -43,6 +44,12 @@ export default async function AppPage({
         <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink">
           Nested
         </span>
+        <Link
+          href="/home"
+          className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint hover:text-ink"
+        >
+          home
+        </Link>
         <span className="hidden font-mono text-[10px] tracking-[0.08em] text-ink-faint sm:inline">
           {folders.length} folders · {files.length} files
         </span>
