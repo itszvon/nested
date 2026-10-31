@@ -539,6 +539,9 @@ function mailFailure(message: string): string {
   if (/email_provider_disabled|email logins are disabled/i.test(message)) {
     return "Email confirmation is switched off for this project, so no link could be sent.";
   }
+  if (/security purposes|only request this after/i.test(message)) {
+    return "A code was sent moments ago. Wait about a minute before asking for another.";
+  }
   if (/rate|limit|too many/i.test(message)) {
     return "Too many confirmation emails were sent recently. Try again in a few minutes.";
   }
