@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, RangeSetBuilder, type Extension } from "@codemirror/state";
 import {
+  Decoration,
   EditorView,
+  ViewPlugin,
   drawSelection,
   dropCursor,
   highlightActiveLine,
@@ -11,6 +13,8 @@ import {
   keymap,
   lineNumbers,
   rectangularSelection,
+  type DecorationSet,
+  type ViewUpdate,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
@@ -36,7 +40,7 @@ import {
   linter,
   type Diagnostic,
 } from "@codemirror/lint";
-import { StreamLanguage, syntaxTree } from "@codemirror/language";
+import { StreamLanguage, language, syntaxTree } from "@codemirror/language";
 import { heuristicFindings } from "@/lib/checks";
 import type { EditorSettings } from "@/lib/settings";
 
@@ -56,6 +60,59 @@ const greenStrings = HighlightStyle.define([
     color: "#98c379",
   },
 ]);
+
+// An f-string's {…} hole is parsed as a FormatReplacement: the grammar tags the
+// variable and operators inside it normally, so they refused to turn green.
+// Marking the whole hole makes the string read as one colour, braces included.
+const replacementMark = Decoration.mark({ class: "cm-format-replacement" });
+
+function buildReplacementDecorations(view: EditorView): DecorationSet {
+  const ranges: Array<{ from: number; to: number }> = [];
+  const seen = new Set<string>();
+
+  for (const { from, to } of view.visibleRanges) {
+    syntaxTree(view.state).iterate({
+      from,
+      to,
+      enter(node) {
+        if (node.name !== "FormatReplacement") return;
+        const key = `${node.from}:${node.to}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        ranges.push({ from: node.from, to: node.to });
+      },
+    });
+  }
+
+  ranges.sort((a, b) => a.from - b.from || a.to - b.to);
+
+  const builder = new RangeSetBuilder<Decoration>();
+  for (const range of ranges) builder.add(range.from, range.to, replacementMark);
+  return builder.finish();
+}
+
+const fStringReplacements = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = buildReplacementDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      // Rebuild when the grammar changes too: the language is imported lazily,
+      // so the first build can run before f-strings can be recognised.
+      if (
+        update.docChanged ||
+        update.viewportChanged ||
+        update.startState.facet(language) !== update.state.facet(language)
+      ) {
+        this.decorations = buildReplacementDecorations(update.view);
+      }
+    }
+  },
+  { decorations: (plugin) => plugin.decorations },
+);
 
 function makeTheme(fontSize: number) {
   return EditorView.theme(
@@ -81,6 +138,9 @@ function makeTheme(fontSize: number) {
       border: "none",
       paddingRight: "4px",
     },
+    // Higher specificity than the highlight classes, so the hole and
+    // everything inside it stays string-green.
+    ".cm-format-replacement, .cm-format-replacement *": { color: "#98c379 !important" },
     ".cm-activeLine": { backgroundColor: "rgba(255,255,255,0.025)" },
     ".cm-activeLineGutter": {
       backgroundColor: "transparent",
@@ -231,6 +291,7 @@ export function CodeEditor({
         highlightSelectionMatches(),
         syntaxHighlighting(oneDarkHighlightStyle),
         syntaxHighlighting(greenStrings),
+        fStringReplacements,
         makeTheme(settings.fontSize),
         EditorState.tabSize.of(settings.tabSize),
         keymap.of([
