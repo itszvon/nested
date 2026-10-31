@@ -42,18 +42,95 @@ function timeOf(iso: string) {
 // and focus, so the split view cannot save both files at once.
 let activePane: string | null = null;
 
+/**
+ * Where the open file lives. Folder segments jump to that row in the tree;
+ * the file itself is the current location, so it is not a button. Long paths
+ * drop their middle without losing the full path in the tooltip.
+ */
+function FileBreadcrumb({
+  path,
+  fileName,
+}: {
+  path: Array<{ id: string; name: string }>;
+  fileName: string;
+}) {
+  type Segment =
+    | { kind: "folder"; id: string; name: string }
+    | { kind: "file"; name: string }
+    | { kind: "ellipsis"; names: string[] };
+
+  const fullPath = [...path.map((part) => part.name), fileName].join(" / ");
+  let segments: Segment[];
+
+  if (path.length <= 2) {
+    segments = [
+      ...path.map((part): Segment => ({ kind: "folder", id: part.id, name: part.name })),
+      { kind: "file", name: fileName },
+    ];
+  } else {
+    segments = [
+      { kind: "folder", id: path[0].id, name: path[0].name },
+      { kind: "ellipsis", names: path.slice(1, -1).map((part) => part.name) },
+      { kind: "folder", id: path[path.length - 1].id, name: path[path.length - 1].name },
+      { kind: "file", name: fileName },
+    ];
+  }
+
+  return (
+    <nav
+      aria-label="File location"
+      title={fullPath}
+      className="flex h-7 shrink-0 items-center gap-1 overflow-hidden border-b border-rule px-4 font-mono text-[10px] text-ink-faint"
+    >
+      {segments.map((segment, index) => (
+        <span key={index} className="flex min-w-0 items-center gap-1">
+          {index > 0 ? (
+            <span aria-hidden="true" className="shrink-0 text-ink-faint/60">
+              /
+            </span>
+          ) : null}
+
+          {segment.kind === "folder" ? (
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent("nested:reveal", { detail: segment.id }))
+              }
+              title={`Reveal ${segment.name} in the tree`}
+              className="truncate hover:text-ink"
+            >
+              {segment.name}
+            </button>
+          ) : segment.kind === "ellipsis" ? (
+            <span
+              title={segment.names.join(" / ")}
+              className="shrink-0 cursor-default text-ink-faint"
+            >
+              …
+            </span>
+          ) : (
+            <span className="truncate text-ink-dim">{segment.name}</span>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
+}
+
 export function FilePane({
   file,
   userId,
   settings,
   openVersions = false,
   isPrimary = true,
+  path = [],
 }: {
   file: OpenFile;
   userId: string;
   settings: EditorSettings;
   openVersions?: boolean;
   isPrimary?: boolean;
+  path?: Array<{ id: string; name: string }>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -369,6 +446,10 @@ export function FilePane({
         activePane = file.id;
       }}
     >
+      {path.length > 0 ? (
+        <FileBreadcrumb path={path} fileName={file.name} />
+      ) : null}
+
       <div className="flex h-11 shrink-0 items-center gap-3 overflow-hidden border-b border-rule px-4">
         <span className="flex min-w-0 items-center gap-1.5">
           {dirty ? (

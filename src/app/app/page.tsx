@@ -45,6 +45,24 @@ export default async function AppPage({
 
   const settings = readSettings(profile.data?.settings);
 
+  const folderMap = new Map(folders.map((folder) => [folder.id, folder]));
+
+  /** Root-to-parent folder ancestry for a file. The file itself is rendered by
+   * the pane, so it is not included here. */
+  function ancestry(folderId: string | null): Array<{ id: string; name: string }> {
+    const parts: Array<{ id: string; name: string }> = [];
+    let current = folderId;
+
+    while (current) {
+      const folder = folderMap.get(current);
+      if (!folder) break;
+      parts.unshift({ id: folder.id, name: folder.name });
+      current = folder.parent_id;
+    }
+
+    return parts;
+  }
+
   const selectedId = params.f ?? null;
   const splitId = params.s && params.s !== params.f ? params.s : null;
   const [openFile, splitFile] = await Promise.all([
@@ -119,6 +137,7 @@ export default async function AppPage({
                 userId={user.id}
                 settings={settings}
                 openVersions={params.versions === "1"}
+                path={ancestry(openFile.folder_id)}
               />
             ) : (
               <section className="flex min-w-0 flex-1 items-center justify-center px-6">
@@ -145,6 +164,7 @@ export default async function AppPage({
                   settings={settings}
                   openVersions={false}
                   isPrimary={false}
+                  path={ancestry(splitFile.folder_id)}
                 />
               </>
             ) : null}

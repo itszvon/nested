@@ -106,6 +106,7 @@ export function WorkspaceTree({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [hydrated, setHydrated] = useState(false);
   const [focusIndex, setFocusIndex] = useState(0);
+  const [revealTarget, setRevealTarget] = useState<string | null>(null);
   const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const [menu, setMenu] = useState<Menu>(null);
@@ -215,6 +216,21 @@ export function WorkspaceTree({
     if (focusIndex > rows.length - 1) setFocusIndex(Math.max(0, rows.length - 1));
   }, [rows.length, focusIndex]);
 
+  // Revealing from a breadcrumb or the palette: opening the ancestors happens
+  // first, then the row exists and can be focused and scrolled into view.
+  useEffect(() => {
+    if (!revealTarget) return;
+
+    const index = rows.findIndex((row) => row.node.id === revealTarget);
+    if (index >= 0) {
+      focusRow(index);
+      rowRefs.current[index]?.scrollIntoView({ block: "nearest" });
+    }
+
+    setRevealTarget(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealTarget, rows]);
+
   // A reload restores ?f=, but the file may sit inside collapsed folders.
   useEffect(() => {
     if (!selectedId) return;
@@ -276,6 +292,7 @@ export function WorkspaceTree({
     });
 
     if (node.type === "file") selectFile(node.id);
+    setRevealTarget(id);
   }
 
   async function handleDuplicate(node: TreeNode) {

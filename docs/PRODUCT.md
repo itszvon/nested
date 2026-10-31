@@ -113,6 +113,8 @@ useful half of each and drops the ceremony.
 - Open files in **tabs**, with one optional **split view** pane beside the primary
   file. Both panes edit and save independently; shortcuts follow the pane you last
   touched.
+- A breadcrumb above each pane shows `project / folder / file`; clicking a folder
+  segment reveals that row in the tree. Long paths collapse their middle.
 - Command palette on Ctrl/Cmd+K over file and folder names plus a few actions.
 - A shortcut table in Settings documents every keyboard action.
 - An onboarding document is created for every new account.
