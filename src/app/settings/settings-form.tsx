@@ -45,12 +45,10 @@ export function SettingsForm({
   profile,
   settings,
   usage,
-  pendingUsername,
 }: {
   profile: { username: string; email: string; displayName: string; avatar: string | null };
   settings: EditorSettings;
   usage: { storageBytes: number; files: number; folders: number };
-  pendingUsername: { id: string; username: string } | null;
 }) {
   const router = useRouter();
 
@@ -67,7 +65,8 @@ export function SettingsForm({
   const [usernameBusy, setUsernameBusy] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [usernameNotice, setUsernameNotice] = useState<string | null>(null);
-  const [pending, setPending] = useState(pendingUsername);
+  const [usernameStage, setUsernameStage] = useState<"edit" | "code">("edit");
+  const [usernameCode, setUsernameCode] = useState("");
   const [confirmBusy, setConfirmBusy] = useState(false);
 
   // An email change is confirmed by the link Supabase sends to the new address.
@@ -150,17 +149,15 @@ export function SettingsForm({
       return;
     }
 
-    setUsernamePanel(false);
-    setUsernameNotice(
-      `Confirmation sent to ${profile.email}. Open the link there to finish changing your username.`,
-    );
+    setUsernameStage("code");
+    setUsernameCode("");
+    setUsernameNotice(`Code sent to ${profile.email}. Enter it below to finish.`);
   }
 
   async function confirmPendingUsername() {
-    if (!pending) return;
     setConfirmBusy(true);
     setUsernameError(null);
-    const result = await confirmUsernameChange(pending.id);
+    const result = await confirmUsernameChange(usernameCode);
     setConfirmBusy(false);
 
     if (!result.ok) {
@@ -168,8 +165,9 @@ export function SettingsForm({
       return;
     }
 
-    setUsername(pending.username);
-    setPending(null);
+    setUsernamePanel(false);
+    setUsernameStage("edit");
+    setUsernameCode("");
     setUsernameNotice("Username updated.");
     router.refresh();
   }
@@ -234,28 +232,6 @@ export function SettingsForm({
   return (
     <div>
       <Section title="Profile" hint="Shown in the app header. Only you can see it.">
-        {pending ? (
-          <div className="border border-accent/60 bg-accent/10 p-3">
-            <p className="text-[12px] leading-relaxed text-ink">
-              Email confirmed. Change your username to{" "}
-              <span className="font-mono text-ink">{pending.username}</span>?
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void confirmPendingUsername()}
-                disabled={confirmBusy}
-                className={primary}
-              >
-                {confirmBusy ? "Saving" : "Confirm change"}
-              </button>
-              <button type="button" onClick={() => setPending(null)} className={secondary}>
-                Not now
-              </button>
-            </div>
-          </div>
-        ) : null}
-
         <div className="flex items-center gap-4">
           <div className="flex h-16 w-16 items-center justify-center border border-rule-strong bg-panel">
             {avatar ? (
@@ -315,42 +291,99 @@ export function SettingsForm({
               }}
               autoComplete="off"
               spellCheck={false}
-              className={`${field} font-mono`}
+              disabled={usernamePanel && usernameStage === "code"}
+              className={`${field} font-mono disabled:opacity-60`}
             />
 
             {usernamePanel ? (
               <div className="mt-2 border border-rule p-3">
-                <p className="text-[11px] leading-relaxed text-ink-faint">
-                  A confirmation link goes to {profile.email}. The username changes only after
-                  you open it.
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void sendUsernameConfirmation()}
-                    disabled={usernameBusy || username.trim() === profile.username}
-                    className={primary}
-                  >
-                    {usernameBusy ? "Sending" : "Send confirmation"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUsernamePanel(false);
-                      setUsernameError(null);
-                    }}
-                    className={secondary}
-                  >
-                    Cancel
-                  </button>
-                </div>
+                {usernameStage === "edit" ? (
+                  <>
+                    <p className="text-[11px] leading-relaxed text-ink-faint">
+                      A six-digit code goes to {profile.email}. The username changes only after
+                      you enter that code here.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void sendUsernameConfirmation()}
+                        disabled={usernameBusy || username.trim() === profile.username}
+                        className={primary}
+                      >
+                        {usernameBusy ? "Sending" : "Send code"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUsernamePanel(false);
+                          setUsernameStage("edit");
+                          setUsernameCode("");
+                          setUsernameError(null);
+                        }}
+                        className={secondary}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[11px] leading-relaxed text-ink-faint">
+                      Enter the code sent to {profile.email}.
+                    </p>
+                    <input
+                      value={usernameCode}
+                      onChange={(event) => {
+                        setUsernameCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 8));
+                        setUsernameError(null);
+                      }}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="123456"
+                      className={`${field} mt-2 font-mono tracking-[0.3em]`}
+                    />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void confirmPendingUsername()}
+                        disabled={confirmBusy || usernameCode.length < 6}
+                        className={primary}
+                      >
+                        {confirmBusy ? "Checking" : "Confirm change"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void sendUsernameConfirmation()}
+                        disabled={usernameBusy}
+                        className={secondary}
+                      >
+                        {usernameBusy ? "Sending" : "Send again"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUsernamePanel(false);
+                          setUsernameStage("edit");
+                          setUsernameCode("");
+                          setUsernameError(null);
+                        }}
+                        className={secondary}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <button
                 type="button"
                 onClick={() => {
                   setUsernamePanel(true);
+                  setUsernameStage("edit");
+                  setUsernameCode("");
                   setUsernameError(null);
+                  setUsernameNotice(null);
                 }}
                 disabled={username.trim().toLowerCase() === profile.username}
                 className={`${secondary} mt-2`}

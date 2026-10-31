@@ -553,8 +553,8 @@ function mailFailure(message: string): string {
 
 /**
  * Starts a username change. Nothing is written to the profile here: a pending
- * request is stored, and a confirmation link goes to the account's email. The
- * change is applied only after that link is opened and confirmed.
+ * request is stored, and a one-time code goes to the account's email. The
+ * change is applied only after that code is entered back in the app.
  */
 export async function requestUsernameChange(username: string): Promise<ActionResult> {
   const user = await requireUser();
@@ -585,6 +585,14 @@ export async function requestUsernameChange(username: string): Promise<ActionRes
     .maybeSingle();
   if (taken) return { ok: false, error: "That username is taken." };
 
+  // One pending change at a time, so a code can only ever apply the request
+  // the user just made. Clearing first keeps the newest row the only one.
+  await supabase
+    .from("profile_change_requests")
+    .delete()
+    .eq("owner_id", user.id)
+    .eq("purpose", "username");
+
   const { data: request, error } = await supabase
     .from("profile_change_requests")
     .insert({ owner_id: user.id, purpose: "username", payload: { username: clean } })
@@ -594,16 +602,10 @@ export async function requestUsernameChange(username: string): Promise<ActionRes
   if (error) return { ok: false, error: explain(error.message) };
 
   const origin = requestOrigin(await headers());
-  const next = `/settings?confirm=${request.id}`;
 
-  // A one-time link to the address already on the account. Opening it proves
-  // control of the mailbox; the request row is what actually carries the change.
   const { error: mail } = await supabase.auth.signInWithOtp({
     email: user.email,
-    options: {
-      shouldCreateUser: false,
-      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
-    },
+    options: { shouldCreateUser: false, emailRedirectTo: origin },
   });
 
   if (mail) {
@@ -614,25 +616,55 @@ export async function requestUsernameChange(username: string): Promise<ActionRes
   return { ok: true, id: request.id };
 }
 
-/** Applies a pending username change after the emailed link was opened. */
-export async function confirmUsernameChange(requestId: string): Promise<ActionResult> {
+/**
+ * Applies the pending username change after the emailed code is verified. The
+ * code is checked by Supabase against the account's own address, so a typed
+ * email never stands in for proving control of the mailbox.
+ */
+export async function confirmUsernameChange(code: string): Promise<ActionResult> {
   const user = await requireUser();
+
+  if (!user.email) {
+    return { ok: false, error: "This account has no email address to confirm with." };
+  }
+
+  const token = code.replace(/\s+/g, "");
+  if (!/^\d{6,8}$/.test(token)) {
+    return { ok: false, error: "That code does not look right. Use the digits from the email." };
+  }
+
   const supabase = await createClient();
+
+  const { error: codeError } = await supabase.auth.verifyOtp({
+    email: user.email,
+    token,
+    type: "email",
+  });
+
+  if (codeError) {
+    if (/expired|invalid|incorrect/i.test(codeError.message)) {
+      return { ok: false, error: "That code is wrong or has expired. Send a new one." };
+    }
+    return { ok: false, error: `That code could not be checked: ${codeError.message}` };
+  }
 
   const { data: request, error } = await supabase
     .from("profile_change_requests")
     .select("id, payload, expires_at")
-    .eq("id", requestId)
+    .eq("owner_id", user.id)
+    .eq("purpose", "username")
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (error) return { ok: false, error: explain(error.message) };
   if (!request) {
-    return { ok: false, error: "That confirmation is no longer valid. Start again." };
+    return { ok: false, error: "No username change is waiting. Start again." };
   }
 
   if (new Date(request.expires_at).getTime() < Date.now()) {
     await supabase.from("profile_change_requests").delete().eq("id", request.id);
-    return { ok: false, error: "That confirmation link expired. Start again." };
+    return { ok: false, error: "That request expired. Start again." };
   }
 
   const username = (request.payload as { username?: string } | null)?.username ?? "";
