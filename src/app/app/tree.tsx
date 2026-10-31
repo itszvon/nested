@@ -25,6 +25,7 @@ import {
   ConfirmDialog,
   NewFileDialog,
   NewFolderDialog,
+  NotesDialog,
   ProjectHistoryDialog,
   TrashDialog,
 } from "./dialogs";
@@ -123,6 +124,18 @@ export function WorkspaceTree({
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [projectHistory, setProjectHistory] = useState<{ id: string; name: string } | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [notesTarget, setNotesTarget] = useState<{
+    kind: "folder" | "file";
+    id: string;
+    name: string;
+  } | null>(null);
+  const [pinMenu, setPinMenu] = useState<{
+    x: number;
+    y: number;
+    id: string;
+    type: "folder" | "file";
+    name: string;
+  } | null>(null);
   const [dropTarget, setDropTarget] = useState<
     { id: string; position: "before" | "after" | "into" } | null
   >(null);
@@ -147,6 +160,29 @@ export function WorkspaceTree({
       /* ignore quota errors */
     }
   }, [expanded, hydrated]);
+
+  // The command palette asks the tree to open a path without owning its state.
+  useEffect(() => {
+    function onReveal(event: Event) {
+      const id = (event as CustomEvent<string>).detail;
+      if (typeof id === "string") revealNode(id);
+    }
+    window.addEventListener("nested:reveal", onReveal);
+    return () => window.removeEventListener("nested:reveal", onReveal);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace]);
+
+  // Close the pinned-item menu on any outside interaction.
+  useEffect(() => {
+    if (!pinMenu) return;
+    function close(event: PointerEvent) {
+      const target = event.target as HTMLElement;
+      if (target.closest("[data-pin-menu]")) return;
+      setPinMenu(null);
+    }
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [pinMenu]);
 
   // Close the row menu on any outside interaction.
   useEffect(() => {
@@ -553,6 +589,16 @@ export function WorkspaceTree({
                 key={`${item.type}:${item.id}`}
                 type="button"
                 onClick={() => revealNode(item.id)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  setPinMenu({
+                    x: event.clientX,
+                    y: event.clientY,
+                    id: item.id,
+                    type: item.type,
+                    name: item.name,
+                  });
+                }}
                 title={item.type === "folder" ? "Pinned folder" : "Pinned file"}
                 className="flex max-w-full items-center gap-1.5 border border-rule px-2 py-1 text-[11px] text-ink-dim hover:border-rule-strong hover:text-ink"
               >
@@ -838,6 +884,18 @@ export function WorkspaceTree({
                     <MenuItem
                       onClick={() => {
                         setMenu(null);
+                        setNotesTarget({
+                          kind: row.node.type,
+                          id: row.node.id,
+                          name: row.node.name,
+                        });
+                      }}
+                    >
+                      Notes
+                    </MenuItem>
+                    <MenuItem
+                      onClick={() => {
+                        setMenu(null);
                         void handleDuplicate(row.node);
                       }}
                     >
@@ -913,6 +971,42 @@ export function WorkspaceTree({
             setExpanded((current) => new Set(current).add(folderId));
             router.refresh();
           }}
+        />
+      ) : null}
+
+      {pinMenu ? (
+        <div
+          data-pin-menu
+          className="fixed z-50 w-[140px] border border-rule-strong bg-panel py-1"
+          style={{ left: pinMenu.x, top: pinMenu.y }}
+        >
+          <MenuItem
+            onClick={() => {
+              const target = pinMenu;
+              setPinMenu(null);
+              void setPinned(target.type, target.id, false).then(() => router.refresh());
+            }}
+          >
+            Unpin
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              const target = pinMenu;
+              setPinMenu(null);
+              revealNode(target.id);
+            }}
+          >
+            Reveal
+          </MenuItem>
+        </div>
+      ) : null}
+
+      {notesTarget ? (
+        <NotesDialog
+          kind={notesTarget.kind}
+          id={notesTarget.id}
+          name={notesTarget.name}
+          onClose={() => setNotesTarget(null)}
         />
       ) : null}
 

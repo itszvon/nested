@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FONT_SIZES, type EditorSettings } from "@/lib/settings";
 import {
@@ -642,6 +643,44 @@ export function SettingsForm({
             <dd className="mt-1 text-[15px] tracking-normal text-ink">{usage.folders}</dd>
           </div>
         </dl>
+      </Section>
+
+      <Section
+        title="Versions"
+        hint="Every save is a version you can name, compare side by side, and apply."
+      >
+        <Link href="/settings/versions" className={secondary}>
+          Open versions
+        </Link>
+      </Section>
+
+      <Section title="Shortcuts" hint="Everything the keyboard can do, in one place.">
+        <table className="w-full border-collapse text-left">
+          <thead>
+            <tr className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
+              <th className="w-40 border-b border-rule pb-1.5 font-normal">keys</th>
+              <th className="border-b border-rule pb-1.5 font-normal">does</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ["Ctrl/Cmd K", "Command palette: jump to a file or folder, or run a command"],
+              ["Ctrl/Cmd S", "Save this file, and name the version"],
+              ["Ctrl/Cmd Enter", "Run the file"],
+              ["F2", "Rename the focused row"],
+              ["Space", "Tick or untick a row while selecting"],
+              ["Ctrl/Cmd A", "Select every row while selecting"],
+              ["Delete", "Move the focused row to the trash"],
+              ["Arrow keys", "Walk the tree; left and right collapse and expand"],
+              ["Enter", "Open a file, or expand a folder"],
+            ].map(([keys, does]) => (
+              <tr key={keys} className="border-b border-rule last:border-b-0">
+                <td className="py-1.5 pr-4 font-mono text-[10px] text-ink-dim">{keys}</td>
+                <td className="py-1.5 text-[11px] leading-relaxed text-ink-faint">{does}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </Section>
 
       <Section title="Your data" hint="Every folder, file and saved version, as JSON.">

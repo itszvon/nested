@@ -68,8 +68,8 @@ Ordered by value for cost. None of these are file types.
 | 9 | **Command palette** | `Ctrl/Cmd+K`: jump to a file, create one, switch project, open settings. The tree stops being the only navigation. | Medium |
 | 10 | **Focus mode** | Hide the sidebar and the header arrows, widen the editor. One keyboard shortcut, remembered per account. | Low |
 
-**Shipped:** 3 (duplicate), 4 (pinned files and folders), 7 (version notes),
-8 (project zip export).
+**Shipped:** 3 (duplicate), 4 (pinned files and folders), 7 (named versions),
+8 (project zip export), 9 (command palette).
 
 Two more that are close to free and worth folding into whichever ships first:
 

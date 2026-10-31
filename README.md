@@ -136,5 +136,9 @@ not exist is worse than no runbook.
   TypeScript, Python and SQL, HTML/CSS preview, JSON/YAML checking, and project
   export as a zip
 - `/settings` — picture and display name (any time), username and email (confirmed
-  by six-digit code), editor preferences, storage usage, JSON export, account deletion
+  by six-digit code), editor preferences, storage usage, JSON export, account deletion,
+  and a documented shortcut table
+- `/settings/versions` — every file and project, with named versions, a two-pane
+  comparison (current vs saved, or saved vs saved) and Apply on either side
+- Files and projects carry plain-text **notes**, edited from the row menu
 - `/api/health` — keep-alive and uptime probe, hit daily by a Vercel cron

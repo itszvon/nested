@@ -19,7 +19,7 @@ import type { EditorSettings } from "@/lib/settings";
 import { RUNNER_ENABLED } from "@/lib/site";
 import { removeBlankLines, tidyBlankLines } from "@/lib/whitespace";
 import { getFileSnapshot, saveFile, saveProject, type SaveProjectItem } from "./actions";
-import { SaveProjectDialog, VersionHistoryDialog } from "./dialogs";
+import { Modal, NotesDialog, SaveProjectDialog, VersionHistoryDialog } from "./dialogs";
 import { RunnerPanel } from "./runner";
 import { openLintPanel } from "@codemirror/lint";
 
@@ -59,8 +59,10 @@ export function FilePane({
   const [formatting, setFormatting] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [copied, setCopied] = useState(false);
-  // Optional note stored on the version created by the next save.
-  const [note, setNote] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
+  // Saving asks for the version name, so history reads like a changelog.
+  const [saveDialog, setSaveDialog] = useState(false);
+  const [versionName, setVersionName] = useState("");
 
   // "Version history" arrives as ?versions=1 from the tree menu. Consume it and
   // clean the URL, so the same menu item works again after closing.
@@ -129,7 +131,14 @@ export function FilePane({
     scheduleDraft(next);
   }
 
-  async function save() {
+  function requestSave() {
+    if (saving) return;
+    if (textRef.current === savedText) return;
+    setVersionName("");
+    setSaveDialog(true);
+  }
+
+  async function save(label = "") {
     if (saving) return;
     const value = textRef.current;
     if (value === savedText) return;
@@ -137,7 +146,7 @@ export function FilePane({
     setSaving(true);
     setError(null);
 
-    const result = await saveFile(file.id, value, revision, note);
+    const result = await saveFile(file.id, value, revision, label);
     setSaving(false);
 
     if (!result.ok) {
@@ -146,7 +155,6 @@ export function FilePane({
       return;
     }
 
-    setNote("");
     setConflict(false);
     setSavedText(value);
     setRevision(result.revision);
@@ -162,7 +170,7 @@ export function FilePane({
     function onKey(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        void save();
+        requestSave();
       }
       if (RUNNER_ENABLED && (event.metaKey || event.ctrlKey) && event.key === "Enter") {
         event.preventDefault();
@@ -269,7 +277,7 @@ export function FilePane({
       return;
     }
     setSaving(true);
-    const result = await saveFile(file.id, textRef.current, snapshot.revision, note);
+    const result = await saveFile(file.id, textRef.current, snapshot.revision, "kept local buffer");
     setSaving(false);
 
     if (!result.ok) {
@@ -463,24 +471,18 @@ export function FilePane({
             versions
           </button>
 
-          <input
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void save();
-              }
-            }}
-            placeholder="note for this save"
-            aria-label="Note for this save"
-            maxLength={200}
-            className="ml-1 hidden h-7 w-[130px] border border-rule bg-ground px-2 font-mono text-[10px] text-ink outline-none placeholder:text-ink-faint focus:border-accent lg:block"
-          />
+          <button
+            type="button"
+            onClick={() => setNotesOpen(true)}
+            title="Notes for this file"
+            className="h-7 border border-transparent px-2 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule hover:text-ink"
+          >
+            notes
+          </button>
 
           <button
             type="button"
-            onClick={() => void save()}
+            onClick={requestSave}
             disabled={!dirty || saving}
             className="ml-2 h-7 border border-accent bg-accent px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white disabled:cursor-default disabled:border-rule disabled:bg-transparent disabled:text-ink-faint"
           >
@@ -563,6 +565,61 @@ export function FilePane({
             discard
           </button>
         </div>
+      ) : null}
+
+      {saveDialog ? (
+        <Modal title="Name this version" onClose={() => setSaveDialog(false)}>
+          <div className="space-y-3 p-4">
+            <p className="text-[11px] leading-relaxed text-ink-faint">
+              The name shows up in version history. Leave it empty and the save is just
+              "saved".
+            </p>
+            <input
+              autoFocus
+              value={versionName}
+              onChange={(event) => setVersionName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  setSaveDialog(false);
+                  void save(versionName);
+                }
+              }}
+              placeholder="before refactor"
+              maxLength={200}
+              aria-label="Version name"
+              className="h-9 w-full border border-rule bg-ground px-3 text-[13px] text-ink outline-none focus:border-accent"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSaveDialog(false)}
+                className="h-8 border border-rule px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-dim hover:border-rule-strong hover:text-ink"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSaveDialog(false);
+                  void save(versionName);
+                }}
+                className="h-8 border border-accent bg-accent px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white"
+              >
+                Save File
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {notesOpen ? (
+        <NotesDialog
+          kind="file"
+          id={file.id}
+          name={file.name}
+          onClose={() => setNotesOpen(false)}
+        />
       ) : null}
 
       {saveProjectOpen ? (

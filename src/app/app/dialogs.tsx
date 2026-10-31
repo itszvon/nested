@@ -10,7 +10,9 @@ import {
   listSnapshots,
   listTrash,
   listVersions,
+  readNotes,
   restoreFromTrash,
+  saveNotes,
   type TrashItem,
   restoreProjectSnapshot,
   restoreVersion,
@@ -937,6 +939,86 @@ export function VersionHistoryDialog({
         >
           Close
         </button>
+      </div>
+    </Modal>
+  );
+}
+
+export function NotesDialog({
+  kind,
+  id,
+  name,
+  onClose,
+}: {
+  kind: "folder" | "file";
+  id: string;
+  name: string;
+  onClose: () => void;
+}) {
+  const [text, setText] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const result = await readNotes(kind, id);
+      if (cancelled) return;
+      if (!result.ok) {
+        setError(result.error);
+        setText("");
+        return;
+      }
+      setText(result.notes);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [kind, id]);
+
+  async function save() {
+    if (text === null) return;
+    setSaving(true);
+    setError(null);
+    const result = await saveNotes(kind, id, text);
+    setSaving(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    onClose();
+  }
+
+  return (
+    <Modal title={`Notes · ${name}`} onClose={onClose}>
+      <div className="space-y-3 p-4">
+        <textarea
+          value={text ?? ""}
+          onChange={(event) => setText(event.target.value)}
+          placeholder="Plain text. Nothing is rendered."
+          aria-label="Notes"
+          spellCheck={false}
+          rows={12}
+          className="w-full resize-y border border-rule bg-ground px-3 py-2 font-mono text-[12px] leading-relaxed text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+        />
+        {error ? <p className="text-[11px] text-red-300">{error}</p> : null}
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-8 border border-rule px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-dim hover:border-rule-strong hover:text-ink"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={saving || text === null}
+            className="h-8 border border-accent bg-accent px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white disabled:opacity-40"
+          >
+            {saving ? "Saving" : "Save notes"}
+          </button>
+        </div>
       </div>
     </Modal>
   );

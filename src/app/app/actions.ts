@@ -870,6 +870,59 @@ export async function duplicateNode(
   return { ok: true, id: (data as string | null) ?? undefined };
 }
 
+export async function readNotes(
+  kind: "folder" | "file",
+  id: string,
+): Promise<{ ok: true; notes: string } | { ok: false; error: string }> {
+  await requireUser();
+  const supabase = await createClient();
+  const table = kind === "folder" ? "folders" : "files";
+
+  const { data, error } = await supabase.from(table).select("notes").eq("id", id).maybeSingle();
+  if (error) return { ok: false, error: explain(error.message) };
+  if (!data) return { ok: false, error: "That item no longer exists." };
+
+  return { ok: true, notes: data.notes ?? "" };
+}
+
+/** Notes are plain text, stored on the row itself. */
+export async function saveNotes(
+  kind: "folder" | "file",
+  id: string,
+  notes: string,
+): Promise<ActionResult> {
+  await requireUser();
+  const supabase = await createClient();
+  const table = kind === "folder" ? "folders" : "files";
+
+  const { error } = await supabase
+    .from(table)
+    .update({ notes: notes.slice(0, 100000) })
+    .eq("id", id);
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
+  return { ok: true };
+}
+
+/** Makes a stored version the live content again, keeping history intact. */
+export async function applyVersionToFile(
+  fileId: string,
+  versionId: string,
+): Promise<ActionResult> {
+  const version = await restoreVersion(versionId);
+  if (!version.ok) return version;
+
+  const snapshot = await getFileSnapshot(fileId);
+  if (!snapshot.ok) return snapshot;
+
+  const saved = await saveFile(fileId, version.content, snapshot.revision, "restored from history");
+  if (!saved.ok) return saved;
+
+  return { ok: true };
+}
+
 /** Pins or unpins a row. The timestamp is what orders the pinned list. */
 export async function setPinned(
   kind: "folder" | "file",

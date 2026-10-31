@@ -66,6 +66,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["file_kind"]
           language: Database["public"]["Enums"]["file_language"] | null
           name: string
+          notes: string
           owner_id: string
           pinned_at: string | null
           project_id: string | null
@@ -85,6 +86,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["file_kind"]
           language?: Database["public"]["Enums"]["file_language"] | null
           name: string
+          notes?: string
           owner_id: string
           pinned_at?: string | null
           project_id?: string | null
@@ -104,6 +106,7 @@ export type Database = {
           kind?: Database["public"]["Enums"]["file_kind"]
           language?: Database["public"]["Enums"]["file_language"] | null
           name?: string
+          notes?: string
           owner_id?: string
           pinned_at?: string | null
           project_id?: string | null
@@ -142,6 +145,7 @@ export type Database = {
           deleted_at: string | null
           id: string
           name: string
+          notes: string
           owner_id: string
           parent_id: string | null
           pinned_at: string | null
@@ -154,6 +158,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           name: string
+          notes?: string
           owner_id: string
           parent_id?: string | null
           pinned_at?: string | null
@@ -166,6 +171,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           name?: string
+          notes?: string
           owner_id?: string
           parent_id?: string | null
           pinned_at?: string | null

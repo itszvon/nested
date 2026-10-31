@@ -9,6 +9,7 @@ import { readSettings } from "@/lib/settings";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceRows } from "@/lib/workspace";
 import { signOut } from "./actions";
+import { CommandPalette } from "./command-palette";
 import { FilePane } from "./file-pane";
 import { SidebarShell } from "./sidebar-shell";
 import { SidebarToggle } from "./sidebar-toggle";
@@ -94,6 +95,8 @@ export default async function AppPage({
           </form>
         </div>
       </header>
+
+      <CommandPalette folders={folders} files={files} />
 
       <div className="flex min-h-0 flex-1">
         <SidebarShell>
