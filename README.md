@@ -4,8 +4,13 @@ Notes and code, in folders inside folders. Google sign-in, private by default,
 manual saves with per-file version history, a 30-day trash, and nothing ever
 written to the database without a button press.
 
+All documentation lives in [docs/](docs/README.md):
+
 - [docs/SPEC.md](docs/SPEC.md) — what the app does
 - [docs/PLAN.md](docs/PLAN.md) — how it gets built, phase by phase
+- [docs/DESIGN.md](docs/DESIGN.md) — design tokens and UI rules
+- [docs/PRODUCT.md](docs/PRODUCT.md) — product direction and decisions
+- [docs/IDEAS.md](docs/IDEAS.md) — candidate features, not built
 
 ## Setup (one time)
 
@@ -32,10 +37,23 @@ Never use the secret key in this app. It has no business in the browser.
    - Site URL: `http://localhost:3000`
    - Redirect URLs: `http://localhost:3000/auth/callback`
    - Add the production URLs when the app is deployed.
-7. In Supabase: Authentication → Sign In / Providers. Disable everything except
-   Google, including email and anonymous sign-in.
+7. In Supabase: Authentication → Sign In / Providers. Google is the only sign-in
+   method. Disable anonymous sign-in. Leave the **Email** provider enabled: it is
+   the mailer behind username and email confirmation codes.
 
-### 3. Environment
+### 3. Confirmation email
+
+Username and email changes are confirmed with a six-digit code sent by email, so
+Supabase needs a real mailer:
+
+1. Authentication → Emails → SMTP Settings. Add a custom SMTP sender (Brevo,
+   Resend, Postmark all have free tiers). The built-in mailer is throttled and
+   does not allow editing templates.
+2. Templates → **Magic link or OTP** and **Change email address**: put
+   `{{ .Token }}` in the body, otherwise the email arrives with only a link.
+3. Sign In / Providers → Email: **OTP length** 6, **OTP expiration** 600 seconds.
+
+### 4. Environment
 
 ```bash
 cp .env.example .env.local
@@ -43,7 +61,7 @@ cp .env.example .env.local
 
 Fill in the two Supabase values. Sentry keys are optional.
 
-### 4. Run
+### 5. Run
 
 ```bash
 npm install
@@ -109,9 +127,12 @@ not exist is worse than no runbook.
 
 ## What exists so far
 
-Phase 0 only: authentication, the route gate, and a placeholder shell.
-
 - `/login` — Google sign-in, with a setup hint when environment variables are missing
-- `/auth/callback` — OAuth exchange
-- `/app` — signed-in placeholder, proves the session survives a reload
+- `/auth/callback` — OAuth exchange and email-link verification
+- `/app` — the workspace: resizable sidebar, unlimited-depth tree, drag to move,
+  multi-select delete with confirmation, trash, code editor with ten languages and
+  per-language formatting, file and project version history, a browser runner for
+  JavaScript, TypeScript, Python and SQL, HTML/CSS preview
+- `/settings` — picture and display name (any time), username and email (confirmed
+  by six-digit code), editor preferences, storage usage, JSON export, account deletion
 - `/api/health` — keep-alive and uptime probe, hit daily by a Vercel cron
