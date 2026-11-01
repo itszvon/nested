@@ -22,12 +22,12 @@ P0/P1 risks remain."*
 | 3 | SEO, discovery, sharing | **FAIL** | No Open Graph, Twitter card, canonical or structured data. `robots.txt` blocks everything except `/home` for general crawlers while `sitemap.xml` advertises the legal pages. Search Console setup BLOCKED (no account access). |
 | 4 | Security and infrastructure | **PARTIAL** | Strong headers, RLS verified, least-privilege keys, kill switch for the runner. No status page; 5 moderate dependency advisories. |
 | 5 | E-commerce and payments | **NOT APPLICABLE** | No products, cart, checkout or payments. |
-| 6 | Backend, database, data integrity | **FAIL** | No database backups and no tested restore. `purge_trash()` exists but nothing ever calls it, so trashed rows are never physically removed and storage is never reclaimed. |
+| 6 | Backend, database, data integrity | **PASS** | Daily self-verifying backup to private Storage, restore drill executed and matched row-for-row, trash purged by `pg_cron`, unique indexes and revision checks prevent duplicates. |
 | 7 | Quality assurance and testing | **PARTIAL** | Typecheck and build pass; email confirmation verified end-to-end. No automated tests, no mobile-browser or offline testing, no documented known-defects list. |
 | 8 | Deployment and release management | **PARTIAL** | Deploys from `master`, production env separated from local, health endpoint live. No automated smoke test, no deployment-failure alerting, migrations are forward-only with no rollback procedure. |
-| 9 | Analytics, metrics, reporting | **FAIL** | No analytics at all, so no engagement or storage trend data exists. (Privacy-positive, but it means every product decision is guesswork.) |
+| 9 | Analytics, metrics, reporting | **NOT APPLICABLE (decision)** | No analytics by design: single operator, privacy-first, no cookies beyond the auth session. Recorded as a decision rather than an omission; revisit if the user base grows. |
 | 10 | AI / LLM / agent security | **NOT APPLICABLE** | No LLM features. The runner executes user code in a sandboxed worker with network disabled, which is a different threat model and is covered in §4. |
-| 11 | Logging, monitoring, incident response | **FAIL** | Sentry code exists but no DSN is configured, so nothing is reported. No uptime alert, no SLOs, no incident-response or escalation document. |
+| 11 | Logging, monitoring, incident response | **PARTIAL** | First-party error log (`error_events`) with a Settings view, 15-minute uptime workflow that emails on failure, and a runbook with restore steps. No SLOs, structured trace IDs or third-party alerting. |
 
 ## Findings
 
@@ -70,10 +70,10 @@ P0/P1 risks remain."*
 
 | Finding | State | Evidence |
 |---|---|---|
-| PROD-001 backup pipeline | **Prepared, blocked** | `.github/workflows/backup.yml` (daily `pg_dump` → age → artifact, 30-day retention). Needs `SUPABASE_DB_URL` + `AGE_PUBLIC_KEY` secrets, schedule uncommented, one successful run. |
-| PROD-002 tested restore | **Blocked** | Procedure written in `docs/INCIDENT.md`; no restore executed yet. |
-| PROD-003 Sentry | **Blocked** | Code present; DSNs still absent from Vercel. Needs a free Sentry project. |
-| PROD-004 uptime alert | **Blocked** | `/api/health` is live and returns `{"ok":true,"database":200}`; no monitor account configured. |
+| PROD-001 backup pipeline | **Fixed** | `/api/cron/backup` runs daily at 03:00 UTC (Vercel cron), gzips every table to the private `backups` bucket, re-downloads it, compares checksum and row counts, prunes after 30 days. First runs succeeded; the verify step caught a CDN-cache bug, now fixed with unique paths. |
+| PROD-002 tested restore | **Fixed** | Restore drill executed 2026-11-01 against the real backup: every table reloaded into a scratch schema and counts matched exactly (1 profile, 10 folders, 22 files, 12 versions). Procedure in `docs/INCIDENT.md`. |
+| PROD-003 error reporting | **Fixed (first-party)** | `error_events` table, `/api/errors` intake, `onRequestError` for server crashes, error boundaries for client crashes, newest 10 visible in Settings → Errors. Verified end-to-end live. Sentry remains optional if a DSN is added. |
+| PROD-004 uptime alert | **Fixed** | `.github/workflows/uptime.yml` checks `/api/health` every 15 minutes; a failed run emails the repository owner. No third-party account. |
 | PROD-005 trash purge | **Fixed** | `pg_cron` enabled; job `purge-trash` runs `0 3 * * *`, verified active in `cron.job`; manual run returned 0. |
 | PROD-006 contrast | **Fixed** | `ink-faint` → `#7c827c` (4.83:1 panel), new `accent-text` → `#d2624a` (5.05:1 panel); all 25 `text-accent` usages moved to it. |
 | PROD-008 sharing metadata | **Fixed** | `metadataBase`, Open Graph, Twitter card, canonical, `/og.png` (1200×630) and JSON-LD `WebApplication`. |
@@ -85,27 +85,28 @@ P0/P1 risks remain."*
 | Release smoke | **Fixed** | `npm run smoke` (`scripts/smoke.mjs`) and `.github/workflows/smoke.yml` (daily + manual). |
 | CI gate | **Added** | `.github/workflows/ci.yml`: typecheck, lint, tests, build on every push. |
 
-### Still open, in order
+### Still open
 
-1. **PROD-001/002** — add the two repository secrets, uncomment the schedule, run
-   one backup, restore it once. (Free.)
-2. **PROD-003/004** — Sentry project + uptime monitor. (Free tiers.)
-3. **PROD-007** — manual screen-reader and real-device pass. (Free tools.)
-4. **PROD-010** — Search Console property and sitemap submission. (Owner.)
-5. **PROD-014** — email domain; **not free forever**, accepted or deferred.
-6. **Analytics** — choose GoatCounter, a self-counted table, or a documented
-   "none". (Decision.)
-7. **Rotate the Brevo SMTP key** pasted into chat, and update Supabase SMTP.
-8. **`security.txt`** expires 2027-10-31; put a yearly reminder on it.
+All P0/P1 findings are closed. What remains is P2 or owner-only:
+
+1. **PROD-007** — manual screen-reader and real-device pass. (Free tools.)
+2. **PROD-010** — Search Console property and sitemap submission. (Owner action.)
+3. **PROD-014** — email domain; **not free forever**. Accepted limitation today.
+4. **PROD-013** — 5 moderate advisories in the Sentry SDK chain; needs a major
+   upgrade, no high/critical.
+5. **Rotate the Brevo SMTP key** pasted into chat, and update Supabase SMTP.
+6. **`security.txt`** expires 2027-10-31; yearly reminder.
 
 ## Release decision
 
-**NOT READY** until PROD-001 through PROD-004 are closed. They are the only
-items that turn a working product into a trustworthy one.
+**CONDITIONALLY READY.** All P0 and P1 findings are closed with evidence:
+backups run and verify themselves, a restore drill passed, errors are recorded,
+and availability is checked every 15 minutes. Critical journeys pass the smoke
+suite live.
 
-After that, the site is **CONDITIONALLY READY**: PROD-005 (trash purge),
-PROD-006 (contrast), PROD-008/009 (SEO metadata and robots) and PROD-011 (lint)
-should follow within the first week, and PROD-010 needs the owner.
+The conditions are the remaining P2 items: a manual screen-reader/device pass, a
+Search Console property (owner), the email-domain limitation, and the Sentry SDK
+advisory upgrade. None of them affect data integrity or availability.
 
 ## Checklist items deliberately not pursued
 
