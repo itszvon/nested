@@ -76,7 +76,10 @@ export async function GET(request: Request) {
     const payload = JSON.stringify({ version: 1, created_at: createdAt, tables });
     const compressed = gzipSync(Buffer.from(payload, "utf8"));
     const checksum = createHash("sha256").update(compressed).digest("hex");
-    const path = `daily/${createdAt.slice(0, 10)}.json.gz`;
+    // Unique per run: reusing a path lets the storage CDN hand back the
+    // previous object during verification.
+    const stamped = createdAt.replace(/[:.]/g, "-");
+    const path = `daily/${stamped}.json.gz`;
 
     const upload = await supabase.storage
       .from("backups")

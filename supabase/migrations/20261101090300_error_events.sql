@@ -21,5 +21,5 @@ create policy error_events_select on public.error_events
 
 grant select on public.error_events to authenticated;
 
--- The nightly backup reads it too.
-grant select on public.error_events to service_role;
+-- Intake and the nightly backup run as the service role.
+grant select, insert, update, delete on public.error_events to service_role;
