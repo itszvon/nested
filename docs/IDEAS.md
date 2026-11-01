@@ -221,6 +221,37 @@ file-to-file diff, trash preview, bulk restore, and version retention pruning.
 2. **Wiki links + backlinks** — turns the tree into something you navigate by association, which is the closest thing to a moat a notes app can have.
 3. **Trash preview + version retention** — makes recovery trustworthy and keeps storage from ever surprising anyone.
 
+## For professionals
+
+What a consultant, developer or writer actually needs from a workspace like this:
+find things, hand things over, and not lose a week of decisions.
+
+| Idea | Why it matters professionally | Cost |
+|---|---|---|
+| **Cross-file search with filters** | The single missing capability. "Where did I write that?" beats every other feature when it happens. Filters by project, language and date. | L |
+| **Symbol outline panel** | Jump between functions in a long file without scrolling. The grammar tree already exists. | M |
+| **Project status and client metadata** | A project row that can carry `client`, `status` (active / waiting / done) and a due date, shown in the tree. Turns a pile of folders into a work pipeline. | M |
+| **Saved smart folders** | Named queries as virtual folders: `status:active`, `tag:client-x`, `changed:7d`. The professional equivalent of an inbox. | L |
+| **Daily work log** | One keystroke opens (or creates) today's dated file, pre-filled with yesterday's open items. Decisions get recorded where they happen. | S |
+| **Deliverable export (PDF / bundle)** | A project exported as a print-ready PDF or Markdown bundle with a cover page, contents and dates. What you actually send a client. | M |
+| **Expiring read-only share link** | Opt-in, time-limited, revocable link to one file or project. Professionals need to send work; privacy stays intact because nothing is public by default. | L |
+| **File status tags** | `draft`, `review`, `final` as badges on rows, filterable. Prevents sending the wrong version more than any feature in the list. | S |
+| **Audit trail view** | Per project: every save, restore and rename in one timeline with names and times. Answers "when did this change?" without opening each file. | M |
+| **CLI / folder sync with an API token** | Point a command at a local folder to push it into a project and pull changes back. Where professional work already happens. | L |
+| **Snippets with variables** | Reusable blocks (`${client}`, `${date}`) inserted from the palette. Boilerplate stops being retyped. | M |
+| **Templates for recurring documents** | Meeting notes, proposal outline, retro, incident report. New file → pick a shape. | S |
+| **Bookmarklet / paste-a-page** | Save the current browser page as Markdown into a project. Research stops living in another app. | M |
+| **Print stylesheet and per-file PDF** | One file, clean print or PDF. The smallest professional deliverable. | S |
+
+### The three with the highest professional payoff
+
+1. **Search, then smart folders.** Retrieval is the job. Once search exists, saved
+   queries turn a tree into a workflow.
+2. **Status tags plus an audit trail.** Trust in "which version is final" and "when
+   did it change" is what separates a scratchpad from a tool of record.
+3. **Deliverable export.** A professional tool must be able to produce something
+   outbound. PDF/bundle export and an expiring share link are that moment.
+
 ## Explicitly not doing
 
 - Markdown rendering as a default view — the SPEC rules it out; a checklist kind

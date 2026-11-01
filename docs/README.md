@@ -11,6 +11,7 @@ and `AGENTS.md` (rewritten by `next dev`).
 | [PLAN.md](PLAN.md) | Build plan, phase by phase. |
 | [REQUIREMENTS-MATRIX.md](REQUIREMENTS-MATRIX.md) | Requirement-by-requirement status. |
 | [PRODUCTION-READINESS.md](PRODUCTION-READINESS.md) | Launch checklist and the honest state of operations. |
+| [PRODUCTION-AUDIT.md](PRODUCTION-AUDIT.md) | Audit against the Website Production-Readiness Master Checklist v2.1, with findings and the release decision. |
 | [adding-a-language.md](adding-a-language.md) | How to add a language to the editor. |
 | [surface-brief-app.md](surface-brief-app.md) | Surface brief for the app shell. |
 | [IDEAS.md](IDEAS.md) | Candidate features, deliberately not built yet, and the competitive reasoning. |
