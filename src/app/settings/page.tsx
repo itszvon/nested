@@ -9,6 +9,7 @@ import { SettingsForm } from "./settings-form";
 
 export const metadata: Metadata = {
   title: "Settings · Nested",
+  robots: { index: false, follow: false },
 };
 
 export const instant = false;

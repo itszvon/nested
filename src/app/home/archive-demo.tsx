@@ -45,7 +45,7 @@ export function VersionScrubber() {
         <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-faint">
           version history
         </span>
-        <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-accent">
+        <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-accent-text)]">
           {version.source === "project" ? "project save" : "save file"}
         </span>
       </div>

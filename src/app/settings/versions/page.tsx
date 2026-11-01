@@ -9,6 +9,7 @@ import { VersionBrowser } from "./version-browser";
 
 export const metadata: Metadata = {
   title: "Versions · Nested",
+  robots: { index: false, follow: false },
 };
 
 export const instant = false;

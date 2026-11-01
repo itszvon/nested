@@ -385,9 +385,13 @@ export function CodeEditor({
   const host = useRef<HTMLDivElement>(null);
   const languageSlot = useRef(new Compartment());
   const changeHandler = useRef(onChange);
-  changeHandler.current = onChange;
   const diagnosticsHandler = useRef(onDiagnostics);
-  diagnosticsHandler.current = onDiagnostics;
+
+  // Mirror the latest props after paint; the editor's listeners read them.
+  useEffect(() => {
+    changeHandler.current = onChange;
+    diagnosticsHandler.current = onDiagnostics;
+  });
 
   useEffect(() => {
     if (!host.current) return;

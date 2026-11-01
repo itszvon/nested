@@ -10,6 +10,13 @@ export const metadata: Metadata = {
   title: "Nested · notes and code in folders inside folders",
   description:
     "Notes and code in one tree. Google sign-in, a code editor for twelve languages, and a saved version behind every save.",
+  alternates: { canonical: "/home" },
+  openGraph: {
+    url: "/home",
+    title: "Nested · notes and code in folders inside folders",
+    description:
+      "Notes and code in one tree. Google sign-in, a code editor for twelve languages, and a saved version behind every save.",
+  },
 };
 
 const FAQ = [
@@ -146,7 +153,7 @@ function ProductMock() {
       </div>
 
       <div className="flex h-8 items-center gap-3 border-t border-rule px-3 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
-        <span className="text-accent">versions</span>
+        <span className="text-[var(--color-accent-text)]">versions</span>
         <span>17 versions</span>
         <span className="ml-auto">saved 17:42</span>
       </div>
@@ -165,6 +172,22 @@ export default async function LandingPage() {
 
   return (
     <div id="top" className="min-h-dvh">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            name: "Nested",
+            url: "https://nestedforyou.vercel.app/home",
+            applicationCategory: "DeveloperApplication",
+            operatingSystem: "Any",
+            description:
+              "Private notes and code in folders inside folders, with a code editor and a saved version behind every save.",
+            offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          }),
+        }}
+      />
       <header className="border-b border-rule">
         <div className="mx-auto flex h-14 max-w-6xl items-center px-6">
           <span className="font-mono text-[12px] uppercase tracking-[0.18em] text-ink">
@@ -257,7 +280,7 @@ export default async function LandingPage() {
           <div className="mx-auto grid max-w-6xl gap-px bg-rule px-0 sm:grid-cols-3">
             {FEATURES.map((feature) => (
               <div key={feature.label} className="bg-ground px-6 py-10">
-                <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-accent">
+                <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--color-accent-text)]">
                   {feature.label}
                 </p>
                 <h2 className="mt-4 text-[18px] font-medium tracking-[-0.01em] text-ink">

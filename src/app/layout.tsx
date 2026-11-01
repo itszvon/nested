@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,10 +13,30 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const description = "Notes and code, in folders inside folders.";
+
+/**
+ * Shared defaults. Individual pages opt out of indexing; marking the whole
+ * site `noindex` here used to keep even the landing page out of search.
+ */
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Nested",
-  description: "Notes and code, in folders inside folders.",
-  robots: { index: false, follow: false },
+  description,
+  openGraph: {
+    type: "website",
+    siteName: "Nested",
+    title: "Nested",
+    description,
+    url: "/home",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Nested" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nested",
+    description,
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

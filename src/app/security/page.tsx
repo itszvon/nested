@@ -37,7 +37,7 @@ export default function SecurityPage() {
           worth more than a long report.
         </p>
         <p>
-          Please do not test against other people's accounts, do not run automated scanners against
+          Please do not test against other people&apos;s accounts, do not run automated scanners against
           the service, and do not publish a working exploit before it is fixed. Test against your
           own account only.
         </p>

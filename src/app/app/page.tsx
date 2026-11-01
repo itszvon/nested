@@ -19,6 +19,7 @@ import { WorkspaceTree } from "./tree";
 
 export const metadata: Metadata = {
   title: "Nested",
+  robots: { index: false, follow: false },
 };
 
 // The shell needs the session and the tree before it can render anything.
@@ -85,7 +86,7 @@ export default async function AppPage({
         <Link
           href="/home"
           aria-label="Nested home"
-          className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink hover:text-accent"
+          className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink hover:text-[var(--color-accent-text)]"
         >
           Nested
         </Link>

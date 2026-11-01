@@ -14,8 +14,12 @@
   --color-rule-strong: #2c3530;
   --color-ink: #e9e7e1;
   --color-ink-dim: #9aa09a;
-  --color-ink-faint: #6a706b;
+  /* 4.83:1 on panel, 4.99:1 on ground: small labels stay readable. */
+  --color-ink-faint: #7c827c;
+  /* Backgrounds, borders, focus rings. */
   --color-accent: #a8442f;
+  /* Accent used as text on dark: 5.05:1 on panel, 5.22:1 on ground. */
+  --color-accent-text: #d2624a;
   --color-accent-dim: #7a2f20;
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;

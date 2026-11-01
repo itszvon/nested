@@ -9,7 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "db:check": "node scripts/db-check.mjs",
-    "db:types": "supabase gen types typescript --linked > src/lib/database.types.ts"
+    "db:types": "supabase gen types typescript --linked > src/lib/database.types.ts",
+    "test": "node --test --experimental-strip-types \"src/lib/*.test.ts\"",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",

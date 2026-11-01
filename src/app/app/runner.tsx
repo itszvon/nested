@@ -459,7 +459,7 @@ export function RunnerPanel({
           <button
             type="button"
             onClick={stop}
-            className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-accent hover:text-ink"
+            className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--color-accent-text)] hover:text-ink"
           >
             stop
           </button>
@@ -517,7 +517,7 @@ export function RunnerPanel({
                   line.kind === "ask"
                     ? "text-ink"
                     : line.kind === "in"
-                      ? "text-accent"
+                      ? "text-[var(--color-accent-text)]"
                       : line.kind === "err"
                         ? "text-red-300"
                         : "text-ink-dim"
@@ -528,7 +528,7 @@ export function RunnerPanel({
             ))}
             {awaiting ? (
               <div className="flex items-center gap-1">
-                <span className="text-accent">&gt;</span>
+                <span className="text-[var(--color-accent-text)]">&gt;</span>
                 <input
                   ref={inputRef}
                   value={answer}

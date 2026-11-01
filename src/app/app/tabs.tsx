@@ -33,19 +33,26 @@ export function FileTabs({
   const [tabs, setTabs] = useState<string[]>([]);
   const [closed, setClosed] = useState<string[]>([]);
   const closedRef = useRef<string[]>([]);
-  closedRef.current = closed;
+
+  useEffect(() => {
+    closedRef.current = closed;
+  }, [closed]);
   const [hydrated, setHydrated] = useState(false);
   const [dirty, setDirty] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY);
+      // Hydration-safe read of local UI state; there is no external store.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setTabs((JSON.parse(raw) as string[]).slice(-MAX));
       const recent = localStorage.getItem(CLOSED_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (recent) setClosed((JSON.parse(recent) as string[]).slice(-20));
     } catch {
       /* corrupt storage is not worth failing over */
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHydrated(true);
   }, []);
 
@@ -62,6 +69,7 @@ export function FileTabs({
   // Opening a file by any route (tree, palette, a link) adds it to the strip.
   useEffect(() => {
     if (!activeId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTabs((current) =>
       current.includes(activeId) ? current : [...current, activeId].slice(-MAX),
     );
@@ -175,7 +183,7 @@ export function FileTabs({
             className={[
               "group flex min-w-0 max-w-[220px] items-center gap-1.5 border-r border-rule pl-3 pr-1",
               active ? "bg-panel text-ink shadow-[inset_0_2px_0_var(--color-accent)]" : "",
-              split && !active ? "text-accent" : "text-ink-dim",
+              split && !active ? "text-[var(--color-accent-text)]" : "text-ink-dim",
             ].join(" ")}
           >
             <button

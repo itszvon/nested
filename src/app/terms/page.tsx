@@ -43,7 +43,7 @@ export default function TermsPage() {
         <p>
           You sign in with a Google account and are responsible for that account and everything done
           through it. One person, one account. Do not share access or attempt to reach another
-          person's data.
+          person&apos;s data.
         </p>
       </Section>
 

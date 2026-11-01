@@ -53,6 +53,8 @@ P0/P1 risks remain."*
 | PROD-018 | AuthZ | **PASS (evidence)** | RLS on every table, owner-scoped policies, trigger-level extension lock, no service-role key in the client, runner kill switch (`RUNNER_ENABLED`). | Re-verify after any schema change. |
 | PROD-019 | Legal pages | **PASS (evidence)** | `/terms`, `/privacy`, `/security`, `/dmca`, `/copyright` return 200; `/.well-known/security.txt` returns a contact, policy link and expiry. | Keep the expiry date in security.txt current. |
 | PROD-020 | Content | **PASS** | One `<h1>` per page, no localhost URLs in production HTML, no framework branding, no fake testimonials. | — |
+| PROD-021 | SEO | **P2 (fixed)** | The root layout set `robots: { index: false }`, so **every** page, including `/home` and the policy pages, was `noindex` regardless of `robots.txt`. | Removed from the layout; `/app`, `/login`, `/settings` and `/versions` opt out individually. |
+| PROD-022 | CSP | **Accepted** | CSP allows `'unsafe-inline'` and `'unsafe-eval'` (Next.js hydration, `new Function` in the sandboxed runner, Pyodide). | Documented here; re-review if the runner is removed. Not silently ignored. |
 
 ## Status counts
 
@@ -63,6 +65,38 @@ P0/P1 risks remain."*
 | FAIL | 4 |
 | NOT APPLICABLE | 2 |
 | BLOCKED | 1 |
+
+## Remediation status — 2026-11-01
+
+| Finding | State | Evidence |
+|---|---|---|
+| PROD-001 backup pipeline | **Prepared, blocked** | `.github/workflows/backup.yml` (daily `pg_dump` → age → artifact, 30-day retention). Needs `SUPABASE_DB_URL` + `AGE_PUBLIC_KEY` secrets, schedule uncommented, one successful run. |
+| PROD-002 tested restore | **Blocked** | Procedure written in `docs/INCIDENT.md`; no restore executed yet. |
+| PROD-003 Sentry | **Blocked** | Code present; DSNs still absent from Vercel. Needs a free Sentry project. |
+| PROD-004 uptime alert | **Blocked** | `/api/health` is live and returns `{"ok":true,"database":200}`; no monitor account configured. |
+| PROD-005 trash purge | **Fixed** | `pg_cron` enabled; job `purge-trash` runs `0 3 * * *`, verified active in `cron.job`; manual run returned 0. |
+| PROD-006 contrast | **Fixed** | `ink-faint` → `#7c827c` (4.83:1 panel), new `accent-text` → `#d2624a` (5.05:1 panel); all 25 `text-accent` usages moved to it. |
+| PROD-008 sharing metadata | **Fixed** | `metadataBase`, Open Graph, Twitter card, canonical, `/og.png` (1200×630) and JSON-LD `WebApplication`. |
+| PROD-009 robots | **Fixed** | `Allow: /` with private routes disallowed; no longer contradicts the sitemap. |
+| PROD-011 lint | **Fixed** | `npm run lint` → 0 errors. |
+| PROD-012 tests | **Fixed** | 18 tests in `src/lib/*.test.ts`, run by `npm test` (Node's built-in runner, no new dependency). |
+| PROD-013 advisories | **Partial** | 5 moderate remain, all in the Sentry SDK chain (`@sentry/node`, `glob`, `minimatch`); no high/critical. Upgrade needs a Sentry major and is tracked. |
+| PROD-015 runbook | **Fixed** | `docs/INCIDENT.md`: checks, containment, restore, escalation, known defects, incident log. |
+| Release smoke | **Fixed** | `npm run smoke` (`scripts/smoke.mjs`) and `.github/workflows/smoke.yml` (daily + manual). |
+| CI gate | **Added** | `.github/workflows/ci.yml`: typecheck, lint, tests, build on every push. |
+
+### Still open, in order
+
+1. **PROD-001/002** — add the two repository secrets, uncomment the schedule, run
+   one backup, restore it once. (Free.)
+2. **PROD-003/004** — Sentry project + uptime monitor. (Free tiers.)
+3. **PROD-007** — manual screen-reader and real-device pass. (Free tools.)
+4. **PROD-010** — Search Console property and sitemap submission. (Owner.)
+5. **PROD-014** — email domain; **not free forever**, accepted or deferred.
+6. **Analytics** — choose GoatCounter, a self-counted table, or a documented
+   "none". (Decision.)
+7. **Rotate the Brevo SMTP key** pasted into chat, and update Supabase SMTP.
+8. **`security.txt`** expires 2027-10-31; put a yearly reminder on it.
 
 ## Release decision
 

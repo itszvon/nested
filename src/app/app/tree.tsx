@@ -151,10 +151,13 @@ export function WorkspaceTree({
   useEffect(() => {
     try {
       const raw = localStorage.getItem(EXPANDED_KEY);
+      // Hydration-safe read of local UI state; there is no external store.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setExpanded(new Set(JSON.parse(raw) as string[]));
     } catch {
       /* corrupt storage is not worth failing over */
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHydrated(true);
   }, []);
 
@@ -218,6 +221,7 @@ export function WorkspaceTree({
 
   // Keep the roving focus inside the list as it shrinks.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (focusIndex > rows.length - 1) setFocusIndex(Math.max(0, rows.length - 1));
   }, [rows.length, focusIndex]);
 
@@ -232,6 +236,7 @@ export function WorkspaceTree({
       rowRefs.current[index]?.scrollIntoView({ block: "nearest" });
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRevealTarget(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealTarget, rows]);
@@ -250,6 +255,7 @@ export function WorkspaceTree({
     }
     if (ancestors.length === 0) return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpanded((current) => {
       const missing = ancestors.filter((id) => !current.has(id));
       if (missing.length === 0) return current;
@@ -611,7 +617,7 @@ export function WorkspaceTree({
         <button
           type="button"
           onClick={() => setTrashOpen(true)}
-          className="ml-auto h-6 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint hover:text-accent"
+          className="ml-auto h-6 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint hover:text-[var(--color-accent-text)]"
         >
           trash
         </button>
@@ -663,7 +669,7 @@ export function WorkspaceTree({
             type="button"
             onClick={() => setBulkConfirm(true)}
             disabled={selection.size === 0}
-            className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent hover:text-ink disabled:opacity-40"
+            className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-accent-text)] hover:text-ink disabled:opacity-40"
           >
             delete
           </button>
@@ -817,7 +823,7 @@ export function WorkspaceTree({
 
                 <TypeIcon
                   kind={isFolder ? "folder" : row.node.kind === "code" ? "code" : "text"}
-                  className={isSelected ? "text-accent" : "text-ink-faint"}
+                  className={isSelected ? "text-[var(--color-accent-text)]" : "text-ink-faint"}
                 />
 
                 {isRenaming ? (
@@ -1115,7 +1121,7 @@ function MenuItem({
       onClick={onClick}
       className={[
         "block w-full px-3 py-1.5 text-left text-[12px] hover:bg-[#161b18]",
-        danger ? "text-accent" : "text-ink-dim hover:text-ink",
+        danger ? "text-[var(--color-accent-text)]" : "text-ink-dim hover:text-ink",
       ].join(" ")}
     >
       {children}

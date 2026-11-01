@@ -171,8 +171,27 @@ function FileVersions({ fileId, name }: { fileId: string; name: string }) {
   }
 
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let alive = true;
+    void (async () => {
+      const [list, snapshot] = await Promise.all([
+        listVersions(fileId),
+        getFileSnapshot(fileId),
+      ]);
+      if (!alive) return;
+
+      if (list.ok) setVersions(list.versions);
+      else setError(list.error);
+
+      if (snapshot.ok) setCurrent({ content: snapshot.content, revision: snapshot.revision });
+      else setError(snapshot.error);
+
+      setRight((value) =>
+        value === "current" && list.ok && list.versions[0] ? list.versions[0].id : value,
+      );
+    })();
+    return () => {
+      alive = false;
+    };
   }, [fileId]);
 
   async function textFor(source: string): Promise<string> {
@@ -296,8 +315,19 @@ function ProjectVersions({ projectId, name }: { projectId: string; name: string 
   }
 
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let alive = true;
+    void (async () => {
+      const result = await listSnapshots(projectId);
+      if (!alive) return;
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setSnapshots(result.snapshots);
+    })();
+    return () => {
+      alive = false;
+    };
   }, [projectId]);
 
   async function apply(id: string) {

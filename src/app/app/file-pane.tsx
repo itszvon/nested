@@ -218,6 +218,7 @@ export function FilePane({
   // clean the URL, so the same menu item works again after closing.
   useEffect(() => {
     if (!openVersions) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVersionsOpen(true);
     const params = new URLSearchParams(window.location.search);
     params.delete("versions");
@@ -235,7 +236,10 @@ export function FilePane({
   const viewRef = useRef<EditorView | null>(null);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textRef = useRef(text);
-  textRef.current = text;
+
+  useEffect(() => {
+    textRef.current = text;
+  }, [text]);
 
   const dirty = text !== savedText;
 
@@ -748,14 +752,14 @@ export function FilePane({
           <button
             type="button"
             onClick={() => void reloadTheirCopy()}
-            className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink hover:text-accent"
+            className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink hover:text-[var(--color-accent-text)]"
           >
             reload theirs
           </button>
           <button
             type="button"
             onClick={() => void keepMine()}
-            className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink hover:text-accent"
+            className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink hover:text-[var(--color-accent-text)]"
           >
             keep mine
           </button>
@@ -789,7 +793,7 @@ export function FilePane({
           <button
             type="button"
             onClick={restoreDraft}
-            className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink hover:text-accent"
+            className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink hover:text-[var(--color-accent-text)]"
           >
             restore
           </button>
@@ -850,7 +854,7 @@ export function FilePane({
           <div className="space-y-3 p-4">
             <p className="text-[11px] leading-relaxed text-ink-faint">
               The name shows up in version history. Leave it empty and the save is just
-              "saved".
+              &quot;saved&quot;.
             </p>
             <input
               autoFocus

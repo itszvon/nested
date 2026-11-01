@@ -2,83 +2,9 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { diffLines } from "diff";
+import { MAX_DIFF_ROWS, buildDiffRows, type DiffRow } from "@/lib/diff";
 
-type Row = {
-  left: string | null;
-  right: string | null;
-  leftNo: number | null;
-  rightNo: number | null;
-  kind: "same" | "add" | "del" | "change";
-};
-
-const MAX_ROWS = 4000;
-
-function splitLines(value: string): string[] {
-  const lines = value.split("\n");
-  if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
-  return lines;
-}
-
-/**
- * Side-by-side line diff. Removed and added runs are paired row by row, so a
- * changed line shows old on the left and new on the right instead of two
- * separate blocks.
- */
-function buildRows(left: string, right: string): { rows: Row[]; truncated: boolean } {
-  const rows: Row[] = [];
-  let leftNumber = 1;
-  let rightNumber = 1;
-  let pending: string[] = [];
-  let truncated = false;
-
-  function push(leftLine: string | null, rightLine: string | null) {
-    if (rows.length >= MAX_ROWS) {
-      truncated = true;
-      return;
-    }
-    rows.push({
-      left: leftLine,
-      right: rightLine,
-      leftNo: leftLine === null ? null : leftNumber++,
-      rightNo: rightLine === null ? null : rightNumber++,
-      kind:
-        leftLine === null
-          ? "add"
-          : rightLine === null
-            ? "del"
-            : leftLine === rightLine
-              ? "same"
-              : "change",
-    });
-  }
-
-  for (const part of diffLines(left, right)) {
-    const lines = splitLines(part.value);
-
-    if (part.removed) {
-      pending.push(...lines);
-      continue;
-    }
-
-    if (part.added) {
-      const count = Math.max(pending.length, lines.length);
-      for (let i = 0; i < count; i++) {
-        push(pending[i] ?? null, lines[i] ?? null);
-      }
-      pending = [];
-      continue;
-    }
-
-    for (const line of lines) push(line, line);
-  }
-
-  for (const line of pending) push(line, null);
-
-  return { rows, truncated };
-}
-
-const tint: Record<Row["kind"], string> = {
+const tint: Record<DiffRow["kind"], string> = {
   same: "",
   add: "bg-[#12261a]",
   del: "bg-[#2a1414]",
@@ -94,7 +20,7 @@ export function FileDiff({
 }) {
   const router = useRouter();
   const { rows, truncated } = useMemo(
-    () => buildRows(left.content, right.content),
+    () => buildDiffRows(left.content, right.content),
     [left.content, right.content],
   );
 
@@ -156,7 +82,7 @@ export function FileDiff({
 
         {truncated ? (
           <p className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
-            diff truncated at {MAX_ROWS} rows
+            diff truncated at {MAX_DIFF_ROWS} rows
           </p>
         ) : null}
       </div>

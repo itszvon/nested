@@ -834,7 +834,7 @@ export function SettingsForm({
                   if (result.ok) router.refresh();
                 })();
               }}
-              className={pruneConfirm ? "h-8 border border-accent px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-accent disabled:opacity-40" : secondary}
+              className={pruneConfirm ? "h-8 border border-accent px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--color-accent-text)] disabled:opacity-40" : secondary}
             >
               {pruning ? "Pruning" : pruneConfirm ? "Confirm prune" : "Prune versions"}
             </button>
@@ -906,7 +906,7 @@ export function SettingsForm({
             type="button"
             onClick={() => void removeAccount()}
             disabled={confirmName.trim() !== profile.username || deleting}
-            className="h-9 border border-accent px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-accent disabled:opacity-40"
+            className="h-9 border border-accent px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--color-accent-text)] disabled:opacity-40"
           >
             {deleting ? "Deleting" : "Delete account"}
           </button>

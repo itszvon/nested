@@ -5,6 +5,7 @@ import { signInWithGoogle } from "./actions";
 
 export const metadata: Metadata = {
   title: "Sign in · Nested",
+  robots: { index: false, follow: false },
 };
 
 const ERROR_COPY: Record<string, string> = {

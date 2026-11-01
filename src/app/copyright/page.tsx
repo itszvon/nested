@@ -47,7 +47,7 @@ export default function CopyrightPage() {
         <p>
           The application is built on open-source software: Next.js (MIT), React (MIT), CodeMirror
           (MIT), Prettier (MIT), Sucrase (MIT), sql.js (MIT), Pyodide (MPL-2.0) and Tailwind CSS
-          (MIT), with Sentry's SDK under its own licence. Fonts are Geist, served through the
+          (MIT), with Sentry&apos;s SDK under its own licence. Fonts are Geist, served through the
           framework. Each remains under its own licence and copyright.
         </p>
         <p>

@@ -485,8 +485,20 @@ export function ProjectHistoryDialog({
   }, [projectId]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let alive = true;
+    void (async () => {
+      const result = await listSnapshots(projectId);
+      if (!alive) return;
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setSnapshots(result.snapshots);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [projectId]);
 
   async function restore(id: string) {
     setBusy(true);
@@ -547,7 +559,7 @@ export function ProjectHistoryDialog({
                     type="button"
                     disabled={busy}
                     onClick={() => void restore(snapshot.id)}
-                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent"
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-accent-text)]"
                   >
                     restore all
                   </button>
@@ -773,7 +785,7 @@ export function TrashDialog({
                   <button
                     type="button"
                     onClick={() => void purge(item)}
-                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent"
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-accent-text)]"
                   >
                     delete forever
                   </button>
@@ -809,7 +821,7 @@ export function TrashDialog({
                     type="button"
                     disabled={busyId === item.id}
                     onClick={() => setConfirmId(item.id)}
-                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-accent disabled:opacity-40"
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-[var(--color-accent-text)] disabled:opacity-40"
                   >
                     delete
                   </button>
@@ -847,7 +859,7 @@ export function TrashDialog({
             <button
               type="button"
               onClick={() => void purgeAll()}
-              className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-accent"
+              className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-accent-text)]"
             >
               yes, empty
             </button>
@@ -865,7 +877,7 @@ export function TrashDialog({
               type="button"
               disabled={!items || items.length === 0}
               onClick={() => setConfirmEmpty(true)}
-              className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-accent disabled:opacity-40"
+              className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-[var(--color-accent-text)] disabled:opacity-40"
             >
               empty trash
             </button>
@@ -928,8 +940,20 @@ export function VersionHistoryDialog({
   }, [fileId]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let alive = true;
+    void (async () => {
+      const result = await listVersions(fileId);
+      if (!alive) return;
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setVersions(result.versions);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [fileId]);
 
   async function restore(id: string) {
     setBusyId(id);
@@ -1014,7 +1038,7 @@ export function VersionHistoryDialog({
                   <button
                     type="button"
                     onClick={() => void remove(version.id)}
-                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent"
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-accent-text)]"
                   >
                     delete
                   </button>
@@ -1040,7 +1064,7 @@ export function VersionHistoryDialog({
                     type="button"
                     disabled={busyId === version.id}
                     onClick={() => setConfirmDelete(version.id)}
-                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-accent disabled:opacity-40"
+                    className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-[var(--color-accent-text)] disabled:opacity-40"
                   >
                     delete
                   </button>
@@ -1172,7 +1196,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className="h-8 border border-accent px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-accent"
+            className="h-8 border border-accent px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--color-accent-text)]"
           >
             {confirmLabel}
           </button>

@@ -1,0 +1,43 @@
+name: Database backup
+
+# Free forever: GitHub Actions artifact storage (30-day retention).
+#
+# Before enabling the schedule:
+#   1. Repo → Settings → Secrets and variables → Actions, add
+#        SUPABASE_DB_URL  (postgres connection string, session pooler)
+#        AGE_PUBLIC_KEY   (age public key; private key stays offline)
+#   2. Uncomment the schedule block.
+#   3. Run once with "Run workflow" and download the artifact to prove it works.
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "0 3 * * *"
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install client and age
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client age
+
+      - name: Dump, compress, encrypt
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          AGE_PUBLIC_KEY: ${{ secrets.AGE_PUBLIC_KEY }}
+        run: |
+          if [ -z "$DB_URL" ] || [ -z "$AGE_PUBLIC_KEY" ]; then
+            echo "::error::SUPABASE_DB_URL and AGE_PUBLIC_KEY must be set."
+            exit 1
+          fi
+          pg_dump "$DB_URL" --no-owner --no-privileges \
+            | gzip \
+            | age -r "$AGE_PUBLIC_KEY" > "backup-$(date +%F).sql.gz.age"
+          ls -lh backup-*.age
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup-*.sql.gz.age
+          retention-days: 30
+          if-no-files-found: error

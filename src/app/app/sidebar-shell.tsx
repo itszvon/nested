@@ -17,6 +17,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const saved = Number(localStorage.getItem(KEY));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (Number.isFinite(saved) && saved >= MIN && saved <= MAX) setWidth(saved);
   }, []);
 
