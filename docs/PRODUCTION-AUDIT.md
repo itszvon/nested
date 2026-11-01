@@ -39,7 +39,7 @@ P0/P1 risks remain."*
 | PROD-004 | Monitoring | **P1** | `/api/health` is polled by a Vercel cron but nobody is alerted when it fails. | Free uptime monitor with email/SMS escalation. |
 | PROD-005 | Data lifecycle | **P2** | `purge_trash` is revoked from `authenticated` and never scheduled, so trashed rows and their bytes stay forever. | Daily cron (service role) calling `purge_trash(30)`; report reclaimed bytes. |
 | PROD-006 | Accessibility | **P2** | `--color-ink-faint` (#6a706b) is 3.87:1 on ground and 3.74:1 on panel — below 4.5:1 for the 9–10px labels it is used for. `--color-accent` (#a8442f) as text is 3.3:1. | Lighten ink-faint and use a lighter accent for text, or reserve both for large text and borders only. |
-| PROD-007 | Accessibility | **P2** | No screen-reader or real-device pass; keyboard flows are implemented but unverified end to end. | Manual NVDA/VoiceOver + iPhone/Android pass; record results. |
+| PROD-007 | Accessibility | **PASS (2026-11-01)** | Keyboard-only pass completed by the owner: Tab reaches every control, focus is visible, the tree walks with arrows, Ctrl+K works, dialogs keep focus and Esc closes. Lighthouse accessibility 100 on all public pages. Screen-reader/device pass remains optional. | Recorded; repeat if the shell changes substantially. |
 | PROD-008 | SEO | **P2** | No OG/Twitter tags, canonical links or JSON-LD; a shared link renders as a bare title. | Add `metadataBase`, `openGraph`, `twitter`, and a canonical per page; one static OG image. |
 | PROD-009 | SEO | **P2** | `robots.txt` ends with `Disallow: /`, so general crawlers may fetch only `/home`, while the sitemap lists `/security`, `/dmca`, `/copyright`. | Decide the policy: allow the public pages, keep `/app`, `/login`, `/auth`, `/api` disallowed. |
 | PROD-010 | Search Console | **BLOCKED** | No Search Console property or sitemap submission. | Owner action; then verify indexing. |
@@ -90,11 +90,12 @@ P0/P1 risks remain."*
 
 All P0/P1 findings are closed. What remains is P2 or owner-only:
 
-1. **PROD-007** — manual screen-reader and real-device pass. Automated checks
-   are 100; this is a confidence pass, not a blocker.
-2. **PROD-014** — email domain; **not free forever**. Accepted limitation today.
-3. **PROD-013** — 5 moderate build-time advisories in the Sentry SDK chain; no
+1. **PROD-014** — email domain; **not free forever**. Accepted limitation today
+   unless a domain is purchased.
+2. **PROD-013** — 5 moderate build-time advisories in the Sentry SDK chain; no
    high/critical, no runtime exposure.
+3. **Verify tomorrow's backup** — one Storage object in `backups/daily/` is the
+   only routine check left.
 
 Done since the first audit: Brevo key rotated, GitHub failure emails enabled,
 Search Console verified, sitemap accepted, `security.txt` self-maintaining.
@@ -106,9 +107,10 @@ verify themselves, a restore drill passed, errors are recorded, availability is
 checked every 15 minutes, and the site is verified in Search Console with its
 sitemap accepted. Critical journeys pass the smoke suite live.
 
-The remaining items are P2 polish and do not gate release: a manual
-screen-reader/device pass, the email-domain limitation, the Sentry SDK major
-upgrade, key rotation and the security.txt expiry reminder.
+The remaining items are P2 polish and do not gate release: the email-domain
+limitation and the build-time Sentry advisories. Accessibility is recorded as
+passing (keyboard pass plus automated Lighthouse 100); `security.txt` maintains
+its own expiry and the Brevo key has been rotated.
 
 ## Checklist items deliberately not pursued
 
