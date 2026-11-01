@@ -16,6 +16,7 @@ const checks = [
   { name: "robots", path: "/robots.txt", status: 200 },
   { name: "sitemap", path: "/sitemap.xml", status: 200 },
   { name: "security policy", path: "/security", status: 200 },
+  { name: "security.txt", path: "/.well-known/security.txt", status: 200 },
   { name: "terms", path: "/terms", status: 200 },
   { name: "privacy", path: "/privacy", status: 200 },
   {

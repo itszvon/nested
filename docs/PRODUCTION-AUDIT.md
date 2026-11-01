@@ -18,7 +18,7 @@ P0/P1 risks remain."*
 | # | Section | Status | Why |
 |---|---|---|---|
 | 1 | Legal, copyright, content | **PASS** | `/terms`, `/privacy`, `/security`, `/dmca`, `/copyright` all 200; operator and support contact published in `site.ts`; no fabricated claims or testimonials; no UGC, so moderation rules are not applicable. |
-| 2 | Design, UX, responsive, accessibility | **PARTIAL** | Dark-only is a recorded decision; no cookie banner needed (auth cookies only); FAQ, back-to-top, copy-to-clipboard present; contrast tokens now pass 4.5:1. Remaining: manual screen-reader and real-device verification. |
+| 2 | Design, UX, responsive, accessibility | **PASS (automated)** | Dark-only is a recorded decision; no cookie banner needed; FAQ, back-to-top, copy-to-clipboard present; contrast tokens pass 4.5:1. Lighthouse accessibility **100** on `/home`, `/login` and `/security` (login's raw Tailwind greys were the last failure). A manual screen-reader/device pass is still recommended, not required. |
 | 3 | SEO, discovery, sharing | **PASS** | Open Graph, Twitter card, canonical, JSON-LD and a 1200×630 image are live; `robots.txt` allows public pages and blocks private routes; the global `noindex` bug is fixed; Search Console property verified and the sitemap submitted (status Success). |
 | 4 | Security and infrastructure | **PARTIAL** | Strong headers, RLS verified, least-privilege keys, kill switch for the runner. No status page; 5 moderate dependency advisories. |
 | 5 | E-commerce and payments | **NOT APPLICABLE** | No products, cart, checkout or payments. |
@@ -48,10 +48,10 @@ P0/P1 risks remain."*
 | PROD-013 | Supply chain | **P2** | `npm audit --omit=dev`: 5 moderate advisories. | Review and upgrade where non-breaking; track the rest. |
 | PROD-014 | Email | **P2** | Sender is a Brevo-rewritten Gmail address (`pothole3000@….brevosend.com`); no SPF/DKIM on a product domain. | Verify a domain and send from `noreply@` it. |
 | PROD-015 | Ops docs | **P2** | No incident-response, escalation or known-defects document. | One-page runbook: what to check, who to tell, how to roll back, how to restore. |
-| PROD-016 | Secrets | **PASS (evidence)** | `git ls-files` contains no `.env`, key or token. `.env.local` and `IMPORTANT.md` are gitignored. | Keep as is; rotate the Brevo SMTP key that appeared in chat. |
+| PROD-016 | Secrets | **PASS (evidence)** | `git ls-files` contains no `.env`, key or token. `.env.local` and `IMPORTANT.md` are gitignored. Brevo SMTP key rotated 2026-11-01 after it appeared in chat. | Keep the Supabase CLI PAT short-lived; it expires in ~7 days by design. |
 | PROD-017 | Headers | **PASS (evidence)** | HSTS 2 years, CSP with `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff`, referrer policy, permissions policy, COOP/COEP for the runner. | `'unsafe-inline'`/`'unsafe-eval'` are required by the runner and Next; document as accepted risk. |
 | PROD-018 | AuthZ | **PASS (evidence)** | RLS on every table, owner-scoped policies, trigger-level extension lock, no service-role key in the client, runner kill switch (`RUNNER_ENABLED`). | Re-verify after any schema change. |
-| PROD-019 | Legal pages | **PASS (evidence)** | `/terms`, `/privacy`, `/security`, `/dmca`, `/copyright` return 200; `/.well-known/security.txt` returns a contact, policy link and expiry. | Keep the expiry date in security.txt current. |
+| PROD-019 | Legal pages | **PASS (evidence)** | `/terms`, `/privacy`, `/security`, `/dmca`, `/copyright` return 200; `/.well-known/security.txt` is now generated with an `Expires` value one year ahead, so it cannot lapse. | No manual reminder needed. |
 | PROD-020 | Content | **PASS** | One `<h1>` per page, no localhost URLs in production HTML, no framework branding, no fake testimonials. | — |
 | PROD-021 | SEO | **P2 (fixed)** | The root layout set `robots: { index: false }`, so **every** page, including `/home` and the policy pages, was `noindex` regardless of `robots.txt`. | Removed from the layout; `/app`, `/login`, `/settings` and `/versions` opt out individually. |
 | PROD-022 | CSP | **Accepted** | CSP allows `'unsafe-inline'` and `'unsafe-eval'` (Next.js hydration, `new Function` in the sandboxed runner, Pyodide). | Documented here; re-review if the runner is removed. Not silently ignored. |
@@ -60,8 +60,8 @@ P0/P1 risks remain."*
 
 | Status | Count |
 |---|---|
-| PASS | 4 sections (legal, SEO, backend/data, deployment) |
-| PARTIAL | 4 sections (design/a11y, security, QA, logging) |
+| PASS | 5 sections (legal, design/a11y, SEO, backend/data, deployment) |
+| PARTIAL | 3 sections (security, QA, logging) |
 | FAIL | 0 |
 | NOT APPLICABLE | 3 (e-commerce, analytics by decision, AI) |
 | BLOCKED | 0 |
@@ -80,7 +80,7 @@ P0/P1 risks remain."*
 | PROD-009 robots | **Fixed** | `Allow: /` with private routes disallowed; no longer contradicts the sitemap. |
 | PROD-011 lint | **Fixed** | `npm run lint` → 0 errors. |
 | PROD-012 tests | **Fixed** | 18 tests in `src/lib/*.test.ts`, run by `npm test` (Node's built-in runner, no new dependency). |
-| PROD-013 advisories | **Partial** | 5 moderate remain, all in the Sentry SDK chain (`@sentry/node`, `glob`, `minimatch`); no high/critical. Upgrade needs a Sentry major and is tracked. |
+| PROD-013 advisories | **Partial, build-time only** | 5 moderate remain, all in the Sentry SDK build plugin's `glob`/`minimatch` chain; no runtime exposure, no high/critical. An override was tested and reverted (glob 11 is still inside the advisory range and forcing a major is riskier than the advisory). |
 | PROD-015 runbook | **Fixed** | `docs/INCIDENT.md`: checks, containment, restore, escalation, known defects, incident log. |
 | PROD-010 Search Console | **Fixed** | Property verified with the HTML tag (live in the layout); `sitemap.xml` submitted 2026-11-01 with status **Success**. |
 | Release smoke | **Fixed** | `npm run smoke` (`scripts/smoke.mjs`) and `.github/workflows/smoke.yml` (daily + manual). |
@@ -90,12 +90,14 @@ P0/P1 risks remain."*
 
 All P0/P1 findings are closed. What remains is P2 or owner-only:
 
-1. **PROD-007** — manual screen-reader and real-device pass. (Free tools.)
+1. **PROD-007** — manual screen-reader and real-device pass. Automated checks
+   are 100; this is a confidence pass, not a blocker.
 2. **PROD-014** — email domain; **not free forever**. Accepted limitation today.
-3. **PROD-013** — 5 moderate advisories in the Sentry SDK chain; needs a major
-   upgrade, no high/critical.
-4. **Rotate the Brevo SMTP key** pasted into chat, and update Supabase SMTP.
-5. **`security.txt`** expires 2027-10-31; yearly reminder.
+3. **PROD-013** — 5 moderate build-time advisories in the Sentry SDK chain; no
+   high/critical, no runtime exposure.
+
+Done since the first audit: Brevo key rotated, GitHub failure emails enabled,
+Search Console verified, sitemap accepted, `security.txt` self-maintaining.
 
 ## Release decision
 
