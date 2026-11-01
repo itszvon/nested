@@ -13,7 +13,6 @@ import { createClient } from "@supabase/supabase-js";
  * Protected by CRON_SECRET; Vercel sends it automatically for cron requests.
  */
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const TABLES = [
