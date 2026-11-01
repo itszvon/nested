@@ -129,17 +129,19 @@ not exist is worse than no runbook.
 
 - `/login` — Google sign-in, with a setup hint when environment variables are missing
 - `/auth/callback` — OAuth exchange and email-link verification
-- `/app` — the workspace: open-file tabs with an optional split pane, resizable
+- `/app` — the workspace: open-file tabs (reopen the last closed with
+  `Ctrl/Cmd+Shift+T`) with an optional split pane, side-by-side file diff, resizable
   sidebar, unlimited-depth tree, drag to move,
   multi-select delete with confirmation, duplicate, pinned files and folders,
-  trash, code editor with twelve languages and per-language formatting, file and
+  trash with preview and bulk restore, code editor with twelve languages, indent
+  guides, rainbow brackets and per-language formatting, file and
   project version history with save notes, a browser runner for JavaScript,
   TypeScript, Python and SQL, HTML/CSS preview, JSON/YAML checking, and project
   export as a zip
 - `/settings` — grouped sections with a sticky section nav: picture and display
   name (any time), username and email (confirmed by six-digit code), editor
-  preferences, storage usage with per-project and per-file breakdown, JSON export,
-  account deletion, and a documented shortcut table
+  preferences, storage usage with per-project and per-file breakdown, version
+  retention pruning, JSON export, account deletion, and a documented shortcut table
 - `/settings/versions` — every file and project, with named versions, a two-pane
   comparison (current vs saved, or saved vs saved) and Apply on either side
 - Files and projects carry plain-text **notes**, edited from the row menu

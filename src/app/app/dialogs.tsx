@@ -7,6 +7,7 @@ import {
   deleteVersion,
   deleteForever,
   emptyTrash,
+  getTrashFile,
   listSnapshots,
   listTrash,
   listVersions,
@@ -600,6 +601,50 @@ export function TrashDialog({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [confirmEmpty, setConfirmEmpty] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [preview, setPreview] = useState<{ name: string; content: string } | null>(null);
+
+  function keyOf(item: TrashItem) {
+    return `${item.kind}:${item.id}`;
+  }
+
+  function toggleSelected(item: TrashItem) {
+    setSelected((current) => {
+      const next = new Set(current);
+      const key = keyOf(item);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  async function restoreSelected() {
+    const picks = (items ?? []).filter((item) => selected.has(keyOf(item)));
+    let failed = 0;
+
+    for (const item of picks) {
+      const result = await restoreFromTrash(item.kind, item.id);
+      if (!result.ok) failed += 1;
+    }
+
+    setSelected(new Set());
+    setSelectMode(false);
+    if (failed > 0) setError(`${failed} item${failed === 1 ? "" : "s"} could not be restored.`);
+    onChanged();
+    await load();
+  }
+
+  async function previewItem(item: TrashItem) {
+    setBusyId(item.id);
+    const result = await getTrashFile(item.id);
+    setBusyId(null);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setPreview({ name: result.name, content: result.content });
+  }
 
   const load = useCallback(async () => {
     const result = await listTrash();
@@ -656,6 +701,41 @@ export function TrashDialog({
         <p className="border-b border-rule bg-accent/10 px-4 py-2 text-[11px] text-ink">{error}</p>
       ) : null}
 
+      <div className="flex h-8 items-center gap-3 border-b border-rule px-4">
+        <label className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
+          <input
+            type="checkbox"
+            checked={selectMode}
+            onChange={(event) => {
+              setSelectMode(event.target.checked);
+              if (!event.target.checked) setSelected(new Set());
+            }}
+            className="h-3 w-3 accent-[var(--color-accent)]"
+          />
+          select
+        </label>
+
+        {selectMode && selected.size > 0 ? (
+          <>
+            <span className="font-mono text-[10px] text-ink-dim">{selected.size} selected</span>
+            <button
+              type="button"
+              onClick={() => void restoreSelected()}
+              className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-dim hover:text-ink"
+            >
+              restore
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-ink"
+            >
+              clear
+            </button>
+          </>
+        ) : null}
+      </div>
+
       <div className="max-h-[46vh] overflow-y-auto">
         {items !== null && items.length === 0 ? (
           <p className="px-4 py-6 text-[12px] leading-relaxed text-ink-faint">
@@ -670,6 +750,16 @@ export function TrashDialog({
               key={item.id}
               className="flex items-center gap-3 border-b border-rule px-4 py-2 text-[11px]"
             >
+              {selectMode ? (
+                <input
+                  type="checkbox"
+                  checked={selected.has(keyOf(item))}
+                  onChange={() => toggleSelected(item)}
+                  aria-label={`Select ${item.name}`}
+                  className="h-3 w-3 shrink-0 accent-[var(--color-accent)]"
+                />
+              ) : null}
+
               <span className="w-[34px] shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
                 {item.kind}
               </span>
@@ -697,6 +787,16 @@ export function TrashDialog({
                 </span>
               ) : (
                 <span className="flex shrink-0 items-center gap-2">
+                  {item.kind === "file" ? (
+                    <button
+                      type="button"
+                      disabled={busyId === item.id}
+                      onClick={() => void previewItem(item)}
+                      className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-ink disabled:opacity-40"
+                    >
+                      view
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     disabled={busyId === item.id}
@@ -719,6 +819,26 @@ export function TrashDialog({
           );
         })}
       </div>
+
+      {preview ? (
+        <div className="border-t border-rule">
+          <div className="flex items-center gap-3 px-4 py-2">
+            <span className="min-w-0 truncate font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
+              preview · {preview.name}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPreview(null)}
+              className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-ink"
+            >
+              close
+            </button>
+          </div>
+          <pre className="max-h-52 overflow-auto px-4 pb-3 font-mono text-[11px] leading-[1.6] text-ink-dim">
+            {preview.content}
+          </pre>
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-3 px-4 py-2">
         {confirmEmpty ? (

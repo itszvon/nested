@@ -212,6 +212,9 @@ Second pass, avoiding anything already shipped or on [ROADMAP.md](ROADMAP.md).
 | **Selection stats** | Lines, words and characters selected, in the status corner. | S |
 | **Tab overflow menu** | When tabs exceed the width, a dropdown of the rest instead of pure scrolling. | S |
 
+**Shipped from this batch:** reopen closed tab, indent guides, rainbow brackets,
+file-to-file diff, trash preview, bulk restore, and version retention pruning.
+
 ### The three I would build first
 
 1. **Go to line + reopen closed tab + import from clipboard** — an afternoon, and every one is a habit-forming shortcut.

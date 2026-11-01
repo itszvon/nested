@@ -11,6 +11,7 @@ import { getWorkspaceRows } from "@/lib/workspace";
 import { signOut } from "./actions";
 import { CommandPalette } from "./command-palette";
 import { FileTabs } from "./tabs";
+import { FileDiff } from "./diff-view";
 import { FilePane } from "./file-pane";
 import { SidebarShell } from "./sidebar-shell";
 import { SidebarToggle } from "./sidebar-toggle";
@@ -26,7 +27,7 @@ export const instant = false;
 export default async function AppPage({
   searchParams,
 }: {
-  searchParams: Promise<{ f?: string; versions?: string; r?: string; s?: string }>;
+  searchParams: Promise<{ f?: string; versions?: string; r?: string; s?: string; diff?: string }>;
 }) {
   await connection();
 
@@ -65,6 +66,7 @@ export default async function AppPage({
 
   const selectedId = params.f ?? null;
   const splitId = params.s && params.s !== params.f ? params.s : null;
+  const diffMode = params.diff === "1";
   const [openFile, splitFile] = await Promise.all([
     selectedId ? getFile(selectedId) : Promise.resolve(null),
     splitId ? getFile(splitId) : Promise.resolve(null),
@@ -129,6 +131,9 @@ export default async function AppPage({
         <div className="flex min-w-0 flex-1 flex-col">
           <FileTabs files={files} activeId={selectedId} splitId={splitId} />
 
+          {diffMode && openFile && splitFile ? (
+            <FileDiff left={openFile} right={splitFile} />
+          ) : (
           <div className="flex min-h-0 flex-1">
             {openFile ? (
               <FilePane
@@ -138,6 +143,7 @@ export default async function AppPage({
                 settings={settings}
                 openVersions={params.versions === "1"}
                 path={ancestry(openFile.folder_id)}
+                files={files}
               />
             ) : (
               <section className="flex min-w-0 flex-1 items-center justify-center px-6">
@@ -165,10 +171,12 @@ export default async function AppPage({
                   openVersions={false}
                   isPrimary={false}
                   path={ancestry(splitFile.folder_id)}
+                  files={files}
                 />
               </>
             ) : null}
           </div>
+          )}
         </div>
       </div>
     </div>

@@ -10,6 +10,7 @@ import {
   confirmUsernameChange,
   deleteAccount,
   exportAccountData,
+  pruneVersions,
   requestUsernameChange,
   updateEditorSettings,
   updateProfile,
@@ -130,6 +131,11 @@ export function SettingsForm({
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [exporting, setExporting] = useState(false);
+
+  const [keepVersions, setKeepVersions] = useState(10);
+  const [pruning, setPruning] = useState(false);
+  const [pruneConfirm, setPruneConfirm] = useState(false);
+  const [pruneNotice, setPruneNotice] = useState<string | null>(null);
 
   const usedMb = usage.storageBytes / (1024 * 1024);
   const percent = Math.min(100, (usage.storageBytes / QUOTA) * 100);
@@ -777,6 +783,66 @@ export function SettingsForm({
         <Link href="/settings/versions" className={secondary}>
           Open versions
         </Link>
+
+        <div className="border-t border-rule pt-4">
+          <p className="text-[12px] leading-relaxed text-ink-dim">
+            Keep the newest versions of every file and every named one, and remove the rest.
+            Unnamed history is what fills the 25 MB quota.
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <label
+              htmlFor="keep-versions"
+              className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint"
+            >
+              keep newest
+            </label>
+            <select
+              id="keep-versions"
+              value={keepVersions}
+              onChange={(event) => {
+                setKeepVersions(Number(event.target.value));
+                setPruneConfirm(false);
+                setPruneNotice(null);
+              }}
+              className="h-8 border border-rule bg-ground px-2 font-mono text-[11px] text-ink outline-none focus:border-accent"
+            >
+              {[3, 5, 10, 25, 50].map((count) => (
+                <option key={count} value={count}>
+                  {count}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={pruning}
+              onClick={() => {
+                if (!pruneConfirm) {
+                  setPruneConfirm(true);
+                  return;
+                }
+                void (async () => {
+                  setPruning(true);
+                  setPruneNotice(null);
+                  const result = await pruneVersions(keepVersions);
+                  setPruning(false);
+                  setPruneConfirm(false);
+                  setPruneNotice(
+                    result.ok
+                      ? `Removed ${result.removed} version${result.removed === 1 ? "" : "s"}.`
+                      : result.error,
+                  );
+                  if (result.ok) router.refresh();
+                })();
+              }}
+              className={pruneConfirm ? "h-8 border border-accent px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-accent disabled:opacity-40" : secondary}
+            >
+              {pruning ? "Pruning" : pruneConfirm ? "Confirm prune" : "Prune versions"}
+            </button>
+            {pruneNotice ? (
+              <span className="text-[11px] leading-relaxed text-ink-faint">{pruneNotice}</span>
+            ) : null}
+          </div>
+        </div>
       </Section>
 
       <Section id="shortcuts" title="Shortcuts" hint="Everything the keyboard can do, in one place.">
@@ -791,8 +857,10 @@ export function SettingsForm({
             {[
               ["Ctrl/Cmd K", "Command palette: jump to a file or folder, or run a command"],
               ["Tab click", "Open that file; clicking the split tab swaps the two panes"],
+              ["compare (file header)", "Diff this file against any other file"],
               ["◫ on a tab", "Open that file in split view, or close the split"],
               ["Ctrl/Cmd S", "Save this file, and name the version"],
+              ["Ctrl/Cmd Shift T", "Reopen the last closed tab"],
               ["× on a tab", "Close the tab"],
               ["Ctrl/Cmd Enter", "Run the file"],
               ["F2", "Rename the focused row"],

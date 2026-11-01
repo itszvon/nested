@@ -372,6 +372,47 @@ export async function listTrash(): Promise<
   return { ok: true, items };
 }
 
+/** Read-only look at a trashed file before deciding to restore it. */
+export async function getTrashFile(
+  id: string,
+): Promise<{ ok: true; name: string; content: string } | { ok: false; error: string }> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("files")
+    .select("name, content")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) return { ok: false, error: explain(error.message) };
+  if (!data) return { ok: false, error: "That file no longer exists." };
+
+  return { ok: true, name: data.name, content: data.content ?? "" };
+}
+
+/**
+ * Keeps the newest N versions per file plus every named one. Directly protects
+ * the storage quota from a long history of unnamed saves.
+ */
+export async function pruneVersions(
+  keep: number,
+): Promise<{ ok: true; removed: number } | { ok: false; error: string }> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("prune_versions", {
+    p_keep: Math.max(0, Math.floor(keep)),
+  });
+
+  if (error) return { ok: false, error: explain(error.message) };
+
+  revalidatePath("/app");
+  revalidatePath("/settings");
+  revalidatePath("/settings/versions");
+  return { ok: true, removed: (data as number) ?? 0 };
+}
+
 export async function restoreFromTrash(
   kind: "folder" | "file",
   id: string,

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { redo, undo } from "@codemirror/commands";
 import type { EditorView } from "@codemirror/view";
 import type { OpenFile } from "@/lib/files";
+import type { FileRow } from "@/lib/tree";
 import { deleteDraft, getDraft, putDraft, type Draft } from "@/lib/drafts";
 import {
   buffersInProject,
@@ -117,6 +118,57 @@ function FileBreadcrumb({
   );
 }
 
+function CompareDialog({
+  files,
+  currentId,
+  onClose,
+  onPick,
+}: {
+  files: FileRow[];
+  currentId: string;
+  onClose: () => void;
+  onPick: (id: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLowerCase();
+  const options = files
+    .filter((candidate) => candidate.id !== currentId)
+    .filter((candidate) => !needle || candidate.name.toLowerCase().includes(needle))
+    .slice(0, 30);
+
+  return (
+    <Modal title="Compare with" onClose={onClose}>
+      <div className="p-3">
+        <input
+          autoFocus
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="File name"
+          aria-label="Find a file to compare with"
+          className="h-8 w-full border border-rule bg-ground px-2 text-[12px] text-ink outline-none focus:border-accent"
+        />
+
+        <div className="mt-2 max-h-64 overflow-auto">
+          {options.length === 0 ? (
+            <p className="px-2 py-3 text-[11px] text-ink-faint">Nothing matches.</p>
+          ) : (
+            options.map((candidate) => (
+              <button
+                key={candidate.id}
+                type="button"
+                onClick={() => onPick(candidate.id)}
+                className="block w-full truncate px-2 py-1.5 text-left text-[12px] text-ink-dim hover:bg-[#161b18] hover:text-ink"
+              >
+                {candidate.name}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function FilePane({
   file,
   userId,
@@ -124,6 +176,7 @@ export function FilePane({
   openVersions = false,
   isPrimary = true,
   path = [],
+  files = [],
 }: {
   file: OpenFile;
   userId: string;
@@ -131,6 +184,7 @@ export function FilePane({
   openVersions?: boolean;
   isPrimary?: boolean;
   path?: Array<{ id: string; name: string }>;
+  files?: FileRow[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -143,6 +197,7 @@ export function FilePane({
   const [conflict, setConflict] = useState(false);
   const [copied, setCopied] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   // Saving asks for the version name, so history reads like a changelog.
   const [saveDialog, setSaveDialog] = useState(false);
   const [versionName, setVersionName] = useState("");
@@ -580,6 +635,15 @@ export function FilePane({
 
           <button
             type="button"
+            onClick={() => setCompareOpen(true)}
+            title="Compare with another file"
+            className="h-7 border border-transparent px-2 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule hover:text-ink"
+          >
+            compare
+          </button>
+
+          <button
+            type="button"
             onClick={() => setNotesOpen(true)}
             title="Notes for this file"
             className="h-7 border border-transparent px-2 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule hover:text-ink"
@@ -718,6 +782,22 @@ export function FilePane({
             </div>
           </div>
         </Modal>
+      ) : null}
+
+      {compareOpen ? (
+        <CompareDialog
+          files={files}
+          currentId={file.id}
+          onClose={() => setCompareOpen(false)}
+          onPick={(id) => {
+            setCompareOpen(false);
+            const params = new URLSearchParams(window.location.search);
+            params.set("f", file.id);
+            params.set("s", id);
+            params.set("diff", "1");
+            router.replace(`/app?${params.toString()}`, { scroll: false });
+          }}
+        />
       ) : null}
 
       {notesOpen ? (

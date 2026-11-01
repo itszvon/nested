@@ -92,6 +92,121 @@ function buildReplacementDecorations(view: EditorView): DecorationSet {
   return builder.finish();
 }
 
+// Indent guides: one faint rule per tab stop of leading whitespace. Drawn as a
+// background on the line so it costs no DOM nodes. `ch` units keep it aligned
+// with the monospace face at any font size.
+function indentDecorations(view: EditorView, tabSize: number): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+
+  for (const { from, to } of view.visibleRanges) {
+    let position = from;
+    while (position <= to) {
+      const line = view.state.doc.lineAt(position);
+      let columns = 0;
+
+      for (const character of line.text) {
+        if (character === " ") columns += 1;
+        else if (character === "\t") columns += tabSize - (columns % tabSize);
+        else break;
+      }
+
+      if (columns > 0) {
+        const style =
+          "background-image: repeating-linear-gradient(to right, rgba(255,255,255,0.07) 0 1px, transparent 1px " +
+          tabSize +
+          "ch); background-size: " +
+          columns +
+          "ch 100%; background-repeat: no-repeat;";
+        builder.add(line.from, line.from, Decoration.line({ attributes: { style } }));
+      }
+
+      if (line.to + 1 > to) break;
+      position = line.to + 1;
+    }
+  }
+
+  return builder.finish();
+}
+
+function indentGuides(tabSize: number) {
+  return ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+
+      constructor(view: EditorView) {
+        this.decorations = indentDecorations(view, tabSize);
+      }
+
+      update(update: ViewUpdate) {
+        if (update.docChanged || update.viewportChanged) {
+          this.decorations = indentDecorations(update.view, tabSize);
+        }
+      }
+    },
+    { decorations: (plugin) => plugin.decorations },
+  );
+}
+
+// Rainbow brackets: depth is counted from the syntax tree, so brackets inside
+// strings and comments are never coloured. Three colours cycle.
+function bracketDecorations(view: EditorView): DecorationSet {
+  const found: Array<{ from: number; to: number; depth: number }> = [];
+  const tree = syntaxTree(view.state);
+  let depth = 0;
+
+  for (const { from, to } of view.visibleRanges) {
+    tree.iterate({
+      from,
+      to,
+      enter(node) {
+        if (node.to - node.from !== 1) return;
+        const character = view.state.doc.sliceString(node.from, node.to);
+
+        if (character === "(" || character === "[" || character === "{") {
+          found.push({ from: node.from, to: node.to, depth });
+          depth += 1;
+        } else if (character === ")" || character === "]" || character === "}") {
+          depth = Math.max(0, depth - 1);
+          found.push({ from: node.from, to: node.to, depth });
+        }
+      },
+    });
+  }
+
+  found.sort((a, b) => a.from - b.from);
+
+  const builder = new RangeSetBuilder<Decoration>();
+  for (const item of found) {
+    builder.add(
+      item.from,
+      item.to,
+      Decoration.mark({ class: `cm-bracket-${(item.depth % 3) + 1}` }),
+    );
+  }
+  return builder.finish();
+}
+
+const bracketColors = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = bracketDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (
+        update.docChanged ||
+        update.viewportChanged ||
+        update.startState.facet(language) !== update.state.facet(language)
+      ) {
+        this.decorations = bracketDecorations(update.view);
+      }
+    }
+  },
+  { decorations: (plugin) => plugin.decorations },
+);
+
 const fStringReplacements = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
@@ -142,6 +257,9 @@ function makeTheme(fontSize: number) {
     // Higher specificity than the highlight classes, so the prefix, quotes,
     // text and every interpolation hole stay string-green.
     ".cm-format-string, .cm-format-string *": { color: "#98c379 !important" },
+    ".cm-bracket-1": { color: "#e5c07b" },
+    ".cm-bracket-2": { color: "#56b6c2" },
+    ".cm-bracket-3": { color: "#c678dd" },
     ".cm-activeLine": { backgroundColor: "rgba(255,255,255,0.025)" },
     ".cm-activeLineGutter": {
       backgroundColor: "transparent",
@@ -293,6 +411,7 @@ export function CodeEditor({
         syntaxHighlighting(oneDarkHighlightStyle),
         syntaxHighlighting(greenStrings),
         fStringReplacements,
+        ...(isCode ? [indentGuides(settings.tabSize), bracketColors] : []),
         makeTheme(settings.fontSize),
         EditorState.tabSize.of(settings.tabSize),
         keymap.of([

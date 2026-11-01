@@ -103,7 +103,10 @@ useful half of each and drops the ceremony.
 ### Recovery and limits
 
 - Trash holds deleted files and folders for 30 days; permanent deletion is a
-  separate, explicit action.
+  separate, explicit action. Files can be previewed before restoring, and several
+  items can be restored at once with the same selection pattern as the tree.
+- Version retention can be pruned: keep the newest N versions per file plus every
+  named one.
 - Limits: 2 MB per file, 25 MB per account, 2,000 files, 500 folders.
 - Free infrastructure tier, so the product is deliberately small in scope.
 
@@ -115,6 +118,10 @@ useful half of each and drops the ceremony.
   touched.
 - A breadcrumb above each pane shows `project / folder / file`; clicking a folder
   segment reveals that row in the tree. Long paths collapse their middle.
+- Code files show indent guides and depth-coloured brackets; the last closed tab
+  reopens with `Ctrl/Cmd+Shift+T`.
+- Any two files can be compared in a side-by-side line diff, independent of the
+  version browser.
 - Command palette on Ctrl/Cmd+K over file and folder names plus a few actions.
 - A shortcut table in Settings documents every keyboard action.
 - An onboarding document is created for every new account.

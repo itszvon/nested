@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { FileRow } from "@/lib/tree";
 
 const KEY = "nested.openTabs";
+const CLOSED_KEY = "nested.closedTabs";
 const MAX = 20;
 
 type DirtyEvent = CustomEvent<{ id: string; dirty: boolean }>;
@@ -30,6 +31,9 @@ export function FileTabs({
   const pathname = usePathname();
 
   const [tabs, setTabs] = useState<string[]>([]);
+  const [closed, setClosed] = useState<string[]>([]);
+  const closedRef = useRef<string[]>([]);
+  closedRef.current = closed;
   const [hydrated, setHydrated] = useState(false);
   const [dirty, setDirty] = useState<Set<string>>(new Set());
 
@@ -37,6 +41,8 @@ export function FileTabs({
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) setTabs((JSON.parse(raw) as string[]).slice(-MAX));
+      const recent = localStorage.getItem(CLOSED_KEY);
+      if (recent) setClosed((JSON.parse(recent) as string[]).slice(-20));
     } catch {
       /* corrupt storage is not worth failing over */
     }
@@ -47,10 +53,11 @@ export function FileTabs({
     if (!hydrated) return;
     try {
       localStorage.setItem(KEY, JSON.stringify(tabs));
+      localStorage.setItem(CLOSED_KEY, JSON.stringify(closed));
     } catch {
       /* ignore quota errors */
     }
-  }, [tabs, hydrated]);
+  }, [tabs, closed, hydrated]);
 
   // Opening a file by any route (tree, palette, a link) adds it to the strip.
   useEffect(() => {
@@ -105,6 +112,8 @@ export function FileTabs({
     if (id === splitId) nextSplit = null;
     if (nextSplit === nextActive) nextSplit = null;
 
+    setClosed((stack) => [...stack, id].slice(-20));
+
     setDirty((current) => {
       const next = new Set(current);
       next.delete(id);
@@ -113,6 +122,33 @@ export function FileTabs({
 
     navigate(nextActive, nextSplit);
   }
+
+  function reopenLast() {
+    const id = closedRef.current[closedRef.current.length - 1];
+    if (!id) return;
+
+    setClosed((stack) => stack.slice(0, -1));
+    setTabs((current) => (current.includes(id) ? current : [...current, id].slice(-MAX)));
+    navigate(id, splitId);
+  }
+
+  // Ctrl/Cmd+Shift+T reopens the last closed tab, in this app rather than the
+  // browser's tab history.
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === "t"
+      ) {
+        event.preventDefault();
+        reopenLast();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [splitId]);
 
   function toggleSplit(id: string) {
     if (id === activeId) return;

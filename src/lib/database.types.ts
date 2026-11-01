@@ -394,6 +394,7 @@ export type Database = {
       restore_project: { Args: { p_snapshot_id: string }; Returns: number }
       restore_version: { Args: { p_version_id: string }; Returns: string }
       duplicate_node: { Args: { p_id: string; p_kind: string }; Returns: string }
+      prune_versions: { Args: { p_keep: number }; Returns: number }
       save_file: {
         Args: {
           p_content: string
