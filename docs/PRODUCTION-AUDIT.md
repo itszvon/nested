@@ -42,7 +42,7 @@ P0/P1 risks remain."*
 | PROD-007 | Accessibility | **PASS (2026-11-01)** | Keyboard-only pass completed by the owner: Tab reaches every control, focus is visible, the tree walks with arrows, Ctrl+K works, dialogs keep focus and Esc closes. Lighthouse accessibility 100 on all public pages. Screen-reader/device pass remains optional. | Recorded; repeat if the shell changes substantially. |
 | PROD-008 | SEO | **P2** | No OG/Twitter tags, canonical links or JSON-LD; a shared link renders as a bare title. | Add `metadataBase`, `openGraph`, `twitter`, and a canonical per page; one static OG image. |
 | PROD-009 | SEO | **P2** | `robots.txt` ends with `Disallow: /`, so general crawlers may fetch only `/home`, while the sitemap lists `/security`, `/dmca`, `/copyright`. | Decide the policy: allow the public pages, keep `/app`, `/login`, `/auth`, `/api` disallowed. |
-| PROD-010 | Search Console | **BLOCKED** | No Search Console property or sitemap submission. | Owner action; then verify indexing. |
+| PROD-010 | Search Console | **PASS (2026-11-01)** | Property verified with the HTML tag; `sitemap.xml` submitted and accepted. | Monitor the Pages report weekly for the first month. |
 | PROD-011 | Code quality | **P2** | `npm run lint` fails: 21 errors (setState-in-effect in dialogs, unescaped entities on legal pages). | Fix them so lint is a real gate in CI. |
 | PROD-012 | Testing | **P2** | No automated tests at all. | Start with pure modules: tree assembly, whitespace, copy naming, diff rows, export paths. |
 | PROD-013 | Supply chain | **P2** | `npm audit --omit=dev`: 5 moderate advisories. | Review and upgrade where non-breaking; track the rest. |
