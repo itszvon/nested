@@ -46,7 +46,7 @@ P0/P1 risks remain."*
 | PROD-011 | Code quality | **P2** | `npm run lint` fails: 21 errors (setState-in-effect in dialogs, unescaped entities on legal pages). | Fix them so lint is a real gate in CI. |
 | PROD-012 | Testing | **P2** | No automated tests at all. | Start with pure modules: tree assembly, whitespace, copy naming, diff rows, export paths. |
 | PROD-013 | Supply chain | **P2** | `npm audit --omit=dev`: 5 moderate advisories. | Review and upgrade where non-breaking; track the rest. |
-| PROD-014 | Email | **P2** | Sender is a Brevo-rewritten Gmail address (`pothole3000@….brevosend.com`); no SPF/DKIM on a product domain. | Verify a domain and send from `noreply@` it. |
+| PROD-014 | Email | **ACCEPTED (2026-11-01)** | Sender is a Brevo-rewritten Gmail address (`pothole3000@….brevosend.com`); no SPF/DKIM on a product domain. Owner accepted the limitation rather than buying a domain. | Revisit if a domain is purchased; SPF/DKIM work is then a 30-minute change. |
 | PROD-015 | Ops docs | **P2** | No incident-response, escalation or known-defects document. | One-page runbook: what to check, who to tell, how to roll back, how to restore. |
 | PROD-016 | Secrets | **PASS (evidence)** | `git ls-files` contains no `.env`, key or token. `.env.local` and `IMPORTANT.md` are gitignored. Brevo SMTP key rotated 2026-11-01 after it appeared in chat. | Keep the Supabase CLI PAT short-lived; it expires in ~7 days by design. |
 | PROD-017 | Headers | **PASS (evidence)** | HSTS 2 years, CSP with `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff`, referrer policy, permissions policy, COOP/COEP for the runner. | `'unsafe-inline'`/`'unsafe-eval'` are required by the runner and Next; document as accepted risk. |
@@ -88,14 +88,13 @@ P0/P1 risks remain."*
 
 ### Still open
 
-All P0/P1 findings are closed. What remains is P2 or owner-only:
+All findings are closed or explicitly accepted. What remains is routine:
 
-1. **PROD-014** — email domain; **not free forever**. Accepted limitation today
-   unless a domain is purchased.
-2. **PROD-013** — 5 moderate build-time advisories in the Sentry SDK chain; no
-   high/critical, no runtime exposure.
-3. **Verify tomorrow's backup** — one Storage object in `backups/daily/` is the
-   only routine check left.
+1. **PROD-013** — 5 moderate build-time advisories in the Sentry SDK chain; no
+   high/critical, no runtime exposure. Re-check when Sentry ships a fixed major.
+2. **PROD-014** — email sender limitation, accepted by the owner 2026-11-01.
+3. **Daily backup** — verify a new object in `backups/daily/` after the 03:00 UTC
+   run; the cron is registered and the first runs are verified.
 
 Done since the first audit: Brevo key rotated, GitHub failure emails enabled,
 Search Console verified, sitemap accepted, `security.txt` self-maintaining.
@@ -107,10 +106,10 @@ verify themselves, a restore drill passed, errors are recorded, availability is
 checked every 15 minutes, and the site is verified in Search Console with its
 sitemap accepted. Critical journeys pass the smoke suite live.
 
-The remaining items are P2 polish and do not gate release: the email-domain
-limitation and the build-time Sentry advisories. Accessibility is recorded as
-passing (keyboard pass plus automated Lighthouse 100); `security.txt` maintains
-its own expiry and the Brevo key has been rotated.
+Nothing outstanding gates release. The email-sender limitation is accepted by
+the owner, the remaining advisories are build-time only, accessibility is
+recorded as passing (keyboard pass plus Lighthouse 100), `security.txt`
+maintains its own expiry, and the Brevo key has been rotated.
 
 ## Checklist items deliberately not pursued
 
