@@ -10,8 +10,20 @@ export default function ErrorPage({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Sentry picks this up when a DSN is configured; nothing else is logged.
     console.error(error);
+    // First-party log; visible in Settings. Sentry, when configured, also sees it.
+    void fetch("/api/errors", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        source: "client",
+        message: error.message,
+        stack: error.stack,
+        path: window.location.pathname,
+        digest: error.digest,
+      }),
+      keepalive: true,
+    }).catch(() => {});
   }, [error]);
 
   return (

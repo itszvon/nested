@@ -24,7 +24,7 @@ export default async function SettingsPage() {
 
   const supabase = await createClient();
 
-  const [profile, files, folders, fileRows, versionRows, folderRows] = await Promise.all([
+  const [profile, files, folders, fileRows, versionRows, folderRows, errorRows] = await Promise.all([
     supabase
       .from("profiles")
       .select("username, email, display_name, avatar, settings, storage_bytes")
@@ -37,6 +37,11 @@ export default async function SettingsPage() {
       .is("deleted_at", null),
     supabase.from("versions").select("file_id, byte_size").limit(5000),
     supabase.from("folders").select("id, name").is("deleted_at", null),
+    supabase
+      .from("error_events")
+      .select("id, source, message, path, created_at")
+      .order("created_at", { ascending: false })
+      .limit(10),
   ]);
 
   const row = profile.data;
@@ -100,6 +105,7 @@ export default async function SettingsPage() {
             avatar: row?.avatar ?? null,
           }}
           settings={readSettings(row?.settings)}
+          errors={errorRows.data ?? []}
           breakdown={breakdown}
           usage={{
             storageBytes: Number(row?.storage_bytes ?? 0),

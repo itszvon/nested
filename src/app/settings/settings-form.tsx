@@ -38,6 +38,7 @@ const NAV: Array<{ group: string; links: Array<[string, string]> }> = [
     group: "Data",
     links: [
       ["data", "Export"],
+      ["errors", "Errors"],
       ["delete", "Delete account"],
     ],
   },
@@ -82,6 +83,7 @@ export function SettingsForm({
   settings,
   usage,
   breakdown,
+  errors,
 }: {
   profile: { username: string; email: string; displayName: string; avatar: string | null };
   settings: EditorSettings;
@@ -93,6 +95,13 @@ export function SettingsForm({
     projects: Array<{ name: string; bytes: number }>;
     files: Array<{ name: string; project: string; bytes: number }>;
   };
+  errors: Array<{
+    id: string;
+    source: string;
+    message: string;
+    path: string | null;
+    created_at: string;
+  }>;
 }) {
   const router = useRouter();
 
@@ -884,6 +893,39 @@ export function SettingsForm({
         <button type="button" onClick={() => void download()} disabled={exporting} className={secondary}>
           {exporting ? "Preparing" : "Export everything"}
         </button>
+      </Section>
+
+      <Section
+        id="errors"
+        title="Errors"
+        hint="The ten most recent client and server errors. Written by the app; no third party."
+      >
+        {errors.length === 0 ? (
+          <p className="border border-rule px-3 py-3 text-[11px] text-ink-faint">
+            Nothing recorded.
+          </p>
+        ) : (
+          <ul className="border border-rule">
+            {errors.map((entry) => (
+              <li key={entry.id} className="border-b border-rule px-3 py-2 last:border-b-0">
+                <div className="flex items-baseline gap-3">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
+                    {entry.source}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-ink-dim">
+                    {entry.message}
+                  </span>
+                  <span className="shrink-0 font-mono text-[9px] text-ink-faint">
+                    {new Date(entry.created_at).toLocaleString()}
+                  </span>
+                </div>
+                {entry.path ? (
+                  <p className="mt-0.5 truncate font-mono text-[9px] text-ink-faint">{entry.path}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </Section>
 
       <Section
