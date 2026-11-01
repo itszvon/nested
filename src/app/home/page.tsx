@@ -13,9 +13,19 @@ export const metadata: Metadata = {
   alternates: { canonical: "/home" },
   openGraph: {
     url: "/home",
+    siteName: "Nested",
+    type: "website",
     title: "Nested · notes and code in folders inside folders",
     description:
       "Notes and code in one tree. Google sign-in, a code editor for twelve languages, and a saved version behind every save.",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Nested" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nested · notes and code in folders inside folders",
+    description:
+      "Notes and code in one tree. Google sign-in, a code editor for twelve languages, and a saved version behind every save.",
+    images: ["/og.png"],
   },
 };
 
