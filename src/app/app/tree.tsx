@@ -13,6 +13,7 @@ import {
 import {
   duplicateNode,
   moveNode,
+  previewFile,
   renameNode,
   reorderNodes,
   setPinned,
@@ -41,6 +42,11 @@ function formatBytes(bytes: number | undefined) {
 
 function languageLabel(node: TreeNode) {
   return node.type === "file" && node.kind === "code" ? languageLabelOf(node.language ?? null) : "";
+}
+
+function extensionOf(name: string) {
+  const match = name.match(/\.[^./]*$/);
+  return match ? match[0].toLowerCase() : "";
 }
 
 function countSubtree(node: TreeNode) {
@@ -107,6 +113,14 @@ export function WorkspaceTree({
   const [hydrated, setHydrated] = useState(false);
   const [focusIndex, setFocusIndex] = useState(0);
   const [revealTarget, setRevealTarget] = useState<string | null>(null);
+  const previewTimer = useRef<number | null>(null);
+  const [preview, setPreview] = useState<{
+    x: number;
+    y: number;
+    title: string;
+    meta: string;
+    lines: string[];
+  } | null>(null);
   const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const [menu, setMenu] = useState<Menu>(null);
@@ -270,6 +284,46 @@ export function WorkspaceTree({
     params.delete("r");
     params.set("f", id);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  function clearPreview() {
+    if (previewTimer.current) {
+      window.clearTimeout(previewTimer.current);
+      previewTimer.current = null;
+    }
+    setPreview(null);
+  }
+
+  function schedulePreview(node: TreeNode, event: React.MouseEvent<HTMLDivElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (previewTimer.current) window.clearTimeout(previewTimer.current);
+
+    previewTimer.current = window.setTimeout(async () => {
+      const x = rect.right + 10 + 320 > window.innerWidth ? Math.max(8, rect.left - 330) : rect.right + 10;
+      const y = Math.min(rect.top, Math.max(8, window.innerHeight - 200));
+
+      if (node.type === "folder") {
+        const counts = countSubtree(node);
+        setPreview({
+          x,
+          y,
+          title: node.name,
+          meta: `${counts.folders} folders · ${counts.files} files`,
+          lines: [],
+        });
+        return;
+      }
+
+      const result = await previewFile(node.id);
+      if (!result.ok) return;
+      setPreview({
+        x,
+        y,
+        title: result.name,
+        meta: `${result.size} B`,
+        lines: result.lines,
+      });
+    }, 450);
   }
 
   /** Pinned rows may sit inside collapsed folders; open the path to them. */
@@ -452,6 +506,18 @@ export function WorkspaceTree({
 
     const next = withExtension(renaming.value.trim(), workspace.index.get(renaming.id));
     const node = workspace.index.get(renaming.id);
+
+    // Extensions are fixed for life. The database enforces it too.
+    if (
+      next &&
+      node &&
+      node.type === "file" &&
+      extensionOf(node.name) !== extensionOf(next)
+    ) {
+      setNotice("Renaming cannot change a file's extension. Create a new file instead.");
+      return;
+    }
+
     setRenaming(null);
 
     try {
@@ -721,6 +787,8 @@ export function WorkspaceTree({
                   setFocusIndex(index);
                   setMenu({ id: row.node.id, kind: row.node.type, name: row.node.name });
                 }}
+                onMouseEnter={(event) => schedulePreview(row.node, event)}
+                onMouseLeave={clearPreview}
                 draggable={
                   !selectMode && (row.node.type === "file" || row.node.parentId !== null)
                 }
@@ -994,6 +1062,25 @@ export function WorkspaceTree({
             router.refresh();
           }}
         />
+      ) : null}
+
+      {preview ? (
+        <div
+          className="pointer-events-none fixed z-50 w-[320px] border border-rule-strong bg-panel p-2"
+          style={{ left: preview.x, top: preview.y }}
+        >
+          <div className="flex items-baseline gap-2">
+            <span className="min-w-0 truncate font-mono text-[10px] text-ink">{preview.title}</span>
+            <span className="ml-auto shrink-0 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-faint">
+              {preview.meta}
+            </span>
+          </div>
+          {preview.lines.length > 0 ? (
+            <pre className="mt-1 max-h-40 overflow-hidden whitespace-pre font-mono text-[10px] leading-[1.5] text-ink-dim">
+              {preview.lines.join("\n")}
+            </pre>
+          ) : null}
+        </div>
       ) : null}
 
       {pinMenu ? (

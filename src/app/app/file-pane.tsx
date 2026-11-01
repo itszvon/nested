@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { redo, undo } from "@codemirror/commands";
-import type { EditorView } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import type { OpenFile } from "@/lib/files";
 import type { FileRow } from "@/lib/tree";
 import { deleteDraft, getDraft, putDraft, type Draft } from "@/lib/drafts";
@@ -51,9 +51,11 @@ let activePane: string | null = null;
 function FileBreadcrumb({
   path,
   fileName,
+  children,
 }: {
   path: Array<{ id: string; name: string }>;
   fileName: string;
+  children?: React.ReactNode;
 }) {
   type Segment =
     | { kind: "folder"; id: string; name: string }
@@ -114,6 +116,10 @@ function FileBreadcrumb({
           )}
         </span>
       ))}
+
+      {children ? (
+        <span className="ml-auto flex shrink-0 items-center gap-2 pl-2">{children}</span>
+      ) : null}
     </nav>
   );
 }
@@ -177,6 +183,7 @@ export function FilePane({
   isPrimary = true,
   path = [],
   files = [],
+  initialLine,
 }: {
   file: OpenFile;
   userId: string;
@@ -185,6 +192,7 @@ export function FilePane({
   isPrimary?: boolean;
   path?: Array<{ id: string; name: string }>;
   files?: FileRow[];
+  initialLine?: number;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -198,6 +206,10 @@ export function FilePane({
   const [copied, setCopied] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [gotoOpen, setGotoOpen] = useState(false);
+  const [gotoValue, setGotoValue] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [viewReady, setViewReady] = useState(false);
   // Saving asks for the version name, so history reads like a changelog.
   const [saveDialog, setSaveDialog] = useState(false);
   const [versionName, setVersionName] = useState("");
@@ -278,6 +290,40 @@ export function FilePane({
     scheduleDraft(next);
   }
 
+  function jumpToLine(lineNumber: number) {
+    const view = viewRef.current;
+    if (!view) return;
+
+    const target = Math.min(Math.max(1, Math.floor(lineNumber)), view.state.doc.lines);
+    const line = view.state.doc.line(target);
+    view.dispatch({
+      selection: { anchor: line.from, head: line.to },
+      effects: EditorView.scrollIntoView(line.from, { y: "center" }),
+    });
+    view.focus();
+  }
+
+  async function copyLink() {
+    const view = viewRef.current;
+    const line = view ? view.state.doc.lineAt(view.state.selection.main.head).number : 1;
+    const url = `${window.location.origin}/app?f=${file.id}&line=${line}`;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 1200);
+    } catch {
+      setError("The browser refused clipboard access.");
+    }
+  }
+
+  // A ?line= link opens the file with that line selected and centred.
+  useEffect(() => {
+    if (!viewReady || !initialLine) return;
+    jumpToLine(initialLine);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewReady, initialLine]);
+
   function requestSave() {
     if (saving) return;
     if (textRef.current === savedText) return;
@@ -321,6 +367,11 @@ export function FilePane({
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         requestSave();
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        setGotoValue("");
+        setGotoOpen(true);
       }
       if (RUNNER_ENABLED && (event.metaKey || event.ctrlKey) && event.key === "Enter") {
         event.preventDefault();
@@ -501,9 +552,23 @@ export function FilePane({
         activePane = file.id;
       }}
     >
-      {path.length > 0 ? (
-        <FileBreadcrumb path={path} fileName={file.name} />
-      ) : null}
+      <FileBreadcrumb path={path} fileName={file.name}>
+        <button
+          type="button"
+          onClick={() => void copyLink()}
+          title="Copy a link to the current line"
+          className="border border-rule px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule-strong hover:text-ink"
+        >
+          {linkCopied ? "copied" : "link"}
+        </button>
+        <a
+          href={`/api/files/${file.id}/download`}
+          title="Download this file"
+          className="border border-rule px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule-strong hover:text-ink"
+        >
+          download
+        </a>
+      </FileBreadcrumb>
 
       <div className="flex h-11 shrink-0 items-center gap-3 overflow-hidden border-b border-rule px-4">
         <span className="flex min-w-0 items-center gap-1.5">
@@ -738,6 +803,48 @@ export function FilePane({
         </div>
       ) : null}
 
+      {gotoOpen ? (
+        <Modal title="Go to line" onClose={() => setGotoOpen(false)}>
+          <div className="space-y-3 p-4">
+            <input
+              autoFocus
+              value={gotoValue}
+              onChange={(event) => setGotoValue(event.target.value.replace(/[^0-9]/g, ""))}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  setGotoOpen(false);
+                  jumpToLine(Number(gotoValue) || 1);
+                }
+              }}
+              inputMode="numeric"
+              placeholder="Line number"
+              aria-label="Line number"
+              className="h-9 w-full border border-rule bg-ground px-3 font-mono text-[13px] text-ink outline-none focus:border-accent"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setGotoOpen(false)}
+                className="h-8 border border-rule px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-dim hover:border-rule-strong hover:text-ink"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setGotoOpen(false);
+                  jumpToLine(Number(gotoValue) || 1);
+                }}
+                className="h-8 border border-accent bg-accent px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white"
+              >
+                Go
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
       {saveDialog ? (
         <Modal title="Name this version" onClose={() => setSaveDialog(false)}>
           <div className="space-y-3 p-4">
@@ -844,6 +951,7 @@ export function FilePane({
           onChange={handleChange}
           onView={(view) => {
             viewRef.current = view;
+            setViewReady(true);
           }}
           onDiagnostics={setDiagnostics}
         />

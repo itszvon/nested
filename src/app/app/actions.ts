@@ -64,6 +64,9 @@ function explain(message: string): string {
   if (/permission denied/i.test(message)) {
     return "This account isn't allowed to change that. Reload and try again.";
   }
+  if (/extension_locked/.test(message)) {
+    return "Renaming cannot change a file's extension. Create a new file instead.";
+  }
   if (/parent_trashed/.test(message)) {
     return "The destination is in the trash.";
   }
@@ -136,6 +139,11 @@ export async function createFile(input: {
   return { ok: true, id: data.id };
 }
 
+function extensionOf(name: string): string {
+  const match = name.match(/\.[^./]*$/);
+  return match ? match[0].toLowerCase() : "";
+}
+
 export async function renameNode(
   kind: "folder" | "file",
   id: string,
@@ -143,14 +151,56 @@ export async function renameNode(
 ): Promise<ActionResult> {
   await requireUser();
   const supabase = await createClient();
+  const next = name.trim();
+
+  // The database enforces this too; checking here gives a real message instead
+  // of a constraint error.
+  if (kind === "file") {
+    const { data: current } = await supabase
+      .from("files")
+      .select("name")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (current && extensionOf(current.name) !== extensionOf(next)) {
+      return { ok: false, error: "Renaming cannot change a file's extension." };
+    }
+  }
 
   const table = kind === "folder" ? "folders" : "files";
-  const { error } = await supabase.from(table).update({ name: name.trim() }).eq("id", id);
+  const { error } = await supabase.from(table).update({ name: next }).eq("id", id);
 
   if (error) return { ok: false, error: explain(error.message) };
 
   revalidatePath("/app");
   return { ok: true };
+}
+
+/** First lines of a file, for the tree hover preview. */
+export async function previewFile(id: string): Promise<
+  | { ok: true; name: string; size: number; lines: string[] }
+  | { ok: false; error: string }
+> {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("files")
+    .select("name, byte_size, content")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error) return { ok: false, error: explain(error.message) };
+  if (!data) return { ok: false, error: "That file no longer exists." };
+
+  const content: string = data.content ?? "";
+  const lines = content
+    .split("\n")
+    .slice(0, 10)
+    .map((line: string) => (line.length > 120 ? `${line.slice(0, 120)}…` : line));
+
+  return { ok: true, name: data.name, size: data.byte_size, lines };
 }
 
 export type SaveResult =

@@ -81,7 +81,8 @@ useful half of each and drops the ceremony.
 - Arbitrary folder depth. Projects are top-level folders; loose files may sit
   above them.
 - Duplicate copies a file or a whole folder subtree, content only, keeping the
-  extension intact.
+  extension intact. **An extension can never change**: renaming is blocked in the
+  UI, in the server action, and by a database trigger.
 - Pinning works for files and folders; pins are a separate strip, not a reorder.
 - Any file or project can carry plain-text **notes**, edited independently of the
   file content.

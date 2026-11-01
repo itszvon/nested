@@ -133,8 +133,9 @@ not exist is worse than no runbook.
   `Ctrl/Cmd+Shift+T`) with an optional split pane, side-by-side file diff, resizable
   sidebar, unlimited-depth tree, drag to move,
   multi-select delete with confirmation, duplicate, pinned files and folders,
-  trash with preview and bulk restore, code editor with twelve languages, indent
-  guides, rainbow brackets and per-language formatting, file and
+  trash with preview and bulk restore, hover previews in the tree, code editor with
+  twelve languages, indent guides, rainbow brackets, go-to-line, per-language
+  formatting, copy-a-line-link and single-file download, file and
   project version history with save notes, a browser runner for JavaScript,
   TypeScript, Python and SQL, HTML/CSS preview, JSON/YAML checking, and project
   export as a zip

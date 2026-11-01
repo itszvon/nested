@@ -861,6 +861,7 @@ export function SettingsForm({
               ["◫ on a tab", "Open that file in split view, or close the split"],
               ["Ctrl/Cmd S", "Save this file, and name the version"],
               ["Ctrl/Cmd Shift T", "Reopen the last closed tab"],
+              ["Ctrl/Cmd G", "Go to a line number"],
               ["× on a tab", "Close the tab"],
               ["Ctrl/Cmd Enter", "Run the file"],
               ["F2", "Rename the focused row"],

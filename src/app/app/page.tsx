@@ -27,7 +27,14 @@ export const instant = false;
 export default async function AppPage({
   searchParams,
 }: {
-  searchParams: Promise<{ f?: string; versions?: string; r?: string; s?: string; diff?: string }>;
+  searchParams: Promise<{
+    f?: string;
+    versions?: string;
+    r?: string;
+    s?: string;
+    diff?: string;
+    line?: string;
+  }>;
 }) {
   await connection();
 
@@ -144,6 +151,7 @@ export default async function AppPage({
                 openVersions={params.versions === "1"}
                 path={ancestry(openFile.folder_id)}
                 files={files}
+                initialLine={params.line ? Number(params.line) : undefined}
               />
             ) : (
               <section className="flex min-w-0 flex-1 items-center justify-center px-6">
