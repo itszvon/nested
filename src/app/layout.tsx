@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     // Browser extensions (dark-mode shims especially) rewrite attributes on
     // <html> and <body> before React hydrates. Without this, every load throws
