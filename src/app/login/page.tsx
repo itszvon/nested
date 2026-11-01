@@ -60,10 +60,10 @@ export default function LoginPage({
             >
               Continue with Google
             </button>
-            <p className="mt-4 text-xs leading-relaxed text-neutral-500">
+            <p className="mt-4 text-xs leading-relaxed text-ink-dim">
               Google is the only way in. Your files are private to your account.
             </p>
-            <p className="mt-3 text-[11px] leading-relaxed text-neutral-600">
+            <p className="mt-3 text-[11px] leading-relaxed text-ink-faint">
               By continuing you agree to the{" "}
               <a className="underline hover:text-neutral-400" href="/terms">Terms</a> and the{" "}
               <a className="underline hover:text-neutral-400" href="/privacy">Privacy policy</a>.
