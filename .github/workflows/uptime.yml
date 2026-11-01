@@ -1,0 +1,23 @@
+name: Uptime
+
+# Free alerting: a failed scheduled workflow emails the repository owner.
+# Checks the production health endpoint every 15 minutes.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health endpoint must report a live database
+        run: |
+          body=$(curl -fsS --max-time 20 https://nestedforyou.vercel.app/api/health)
+          echo "$body"
+          echo "$body" | grep -q '"ok":true'
+          echo "$body" | grep -q '"database":200'
