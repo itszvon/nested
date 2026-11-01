@@ -84,7 +84,7 @@ P0/P1 risks remain."*
 | PROD-015 runbook | **Fixed** | `docs/INCIDENT.md`: checks, containment, restore, escalation, known defects, incident log. |
 | PROD-010 Search Console | **Fixed** | Property verified with the HTML tag (live in the layout); `sitemap.xml` submitted 2026-11-01 with status **Success**. |
 | Release smoke | **Fixed** | `npm run smoke` (`scripts/smoke.mjs`) and `.github/workflows/smoke.yml` (daily + manual). |
-| CI gate | **Added** | `.github/workflows/ci.yml`: typecheck, lint, tests, build on every push. |
+| CI gate | **Verified green (2026-11-01)** | `.github/workflows/ci.yml` runs typecheck, lint, tests and build on every push. All runs before `884d4b0` failed on `TS2304: LayoutProps` because typecheck ran before Next generated its types; the layout now types its props explicitly. Run on `884d4b0`: **success**. |
 
 ### Still open
 

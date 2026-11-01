@@ -87,3 +87,4 @@ If no backup object exists, say so plainly — do not improvise a restore.
 | Date | Impact | Cause | Fix | Would have caught it sooner |
 |---|---|---|---|---|
 | 2026-11-01 | none | Backup verification flagged a checksum mismatch when re-uploading the same object path (CDN cache). | Unique timestamped paths per backup run. | The backup's own verify step caught it before it mattered. |
+| 2026-11-01 | CI red on every push (deploys unaffected) | `npm run typecheck` ran before `next build`, so Next's generated `LayoutProps` global did not exist in CI. It existed locally from previous builds. | Layout props typed explicitly; CI green on `884d4b0`. | Reading the first CI log instead of assuming the build was fine. |
