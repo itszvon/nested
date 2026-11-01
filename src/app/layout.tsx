@@ -23,6 +23,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "Nested",
   description,
+  verification: { google: "Ea4v9isTQNptdMltRSawC9a7Lzqa42cBcs9JLQUy8dM" },
   openGraph: {
     type: "website",
     siteName: "Nested",
