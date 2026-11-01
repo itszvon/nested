@@ -165,6 +165,59 @@ Unsorted, cheap to expensive. The first six are the ones I would actually pick.
 | **File info panel** | Kind, language, size, revision count, created, project, notes in one place. | S |
 | **Print / plain export** | Send a markdown file to the browser print dialog or download it individually. | S |
 
+## New batch
+
+Second pass, avoiding anything already shipped or on [ROADMAP.md](ROADMAP.md).
+
+### Editing and navigation
+
+| Idea | What it is | Cost |
+|---|---|---|
+| **Go to line** (`Ctrl/Cmd+G`) | Jump to a line number in the open file. Small, expected, missing. | S |
+| **Scratch buffer** | An unsaved tab for temporary work; closing prompts "save as file". Removes the friction of creating a file to test an idea. | M |
+| **Reopen closed tab** (`Ctrl/Cmd+Shift+T`) | A stack of recently closed tabs, not just files. | S |
+| **Symbol outline** | A panel listing functions, classes and headings from the open file, click to jump. The grammar already produces the tree. | M |
+| **Indent guides + bracket colours** | Two CodeMirror extensions; makes nested code readable at a glance. | S |
+| **Cross-file completion** | Offer identifiers from other open files in the same project. The start of "this feels like an IDE". | L |
+| **Format on save** | A setting, off by default, that runs the existing formatter before writing. | S |
+| **Language follows the extension on rename** | Rename `notes.md` to `notes.py` and the language, icon and run button update with it. | S |
+| **Minimap** | A scaled overview strip; useful for long files, optional per account. | M |
+
+### Structure and knowledge
+
+| Idea | What it is | Cost |
+|---|---|---|
+| **Wiki links** | Type `[[` in a note to link another file by name; the link opens it. Turns a tree into a wiki without leaving text. | M |
+| **Backlinks** | For the open file, list every other file that mentions it. Pairs with wiki links. | M |
+| **Tags** | `#topic` in notes, plus a tag filter that lists files across projects. | M |
+| **Saved searches** | A named query (name, tag, language, modified date) shown as a virtual folder. | L |
+| **Tree previews** | Hover a file row to see its first lines, and a project row to see its file count and size. | S |
+
+### History and recovery
+
+| Idea | What it is | Cost |
+|---|---|---|
+| **Diff two files** | Split view already exists; add "compare with…" to diff any two files, not just versions. | M |
+| **Trash preview** | Open a trashed file read-only before restoring it. Right now restoring is a guess. | S |
+| **Version retention policy** | Keep the newest N versions and the named ones; auto-prune the rest. Directly protects the 25 MB cap. | M |
+| **Bulk restore** | Select several trashed items and restore at once. | S |
+
+### Small workflow wins
+
+| Idea | What it is | Cost |
+|---|---|---|
+| **Copy internal link** | `nested://`-style link (or `/app?f=…&line=…`) that opens a file at a line. | S |
+| **Import from clipboard** | Palette action: "new file from clipboard", language guessed from content. | S |
+| **Download this file** | Single-file download next to export-project. | S |
+| **Selection stats** | Lines, words and characters selected, in the status corner. | S |
+| **Tab overflow menu** | When tabs exceed the width, a dropdown of the rest instead of pure scrolling. | S |
+
+### The three I would build first
+
+1. **Go to line + reopen closed tab + import from clipboard** — an afternoon, and every one is a habit-forming shortcut.
+2. **Wiki links + backlinks** — turns the tree into something you navigate by association, which is the closest thing to a moat a notes app can have.
+3. **Trash preview + version retention** — makes recovery trustworthy and keeps storage from ever surprising anyone.
+
 ## Explicitly not doing
 
 - Markdown rendering as a default view — the SPEC rules it out; a checklist kind
