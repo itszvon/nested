@@ -19,7 +19,7 @@ P0/P1 risks remain."*
 |---|---|---|---|
 | 1 | Legal, copyright, content | **PASS** | `/terms`, `/privacy`, `/security`, `/dmca`, `/copyright` all 200; operator and support contact published in `site.ts`; no fabricated claims or testimonials; no UGC, so moderation rules are not applicable. |
 | 2 | Design, UX, responsive, accessibility | **PARTIAL** | Dark-only is a recorded decision; no cookie banner needed (auth cookies only); FAQ, back-to-top, copy-to-clipboard present; contrast tokens now pass 4.5:1. Remaining: manual screen-reader and real-device verification. |
-| 3 | SEO, discovery, sharing | **PARTIAL** | Open Graph, Twitter card, canonical, JSON-LD and a 1200×630 image are live; `robots.txt` allows public pages and blocks private routes; the global `noindex` bug is fixed. Search Console setup remains BLOCKED (owner access). |
+| 3 | SEO, discovery, sharing | **PASS** | Open Graph, Twitter card, canonical, JSON-LD and a 1200×630 image are live; `robots.txt` allows public pages and blocks private routes; the global `noindex` bug is fixed; Search Console property verified and the sitemap submitted (status Success). |
 | 4 | Security and infrastructure | **PARTIAL** | Strong headers, RLS verified, least-privilege keys, kill switch for the runner. No status page; 5 moderate dependency advisories. |
 | 5 | E-commerce and payments | **NOT APPLICABLE** | No products, cart, checkout or payments. |
 | 6 | Backend, database, data integrity | **PASS** | Daily self-verifying backup to private Storage, restore drill executed and matched row-for-row, trash purged by `pg_cron`, unique indexes and revision checks prevent duplicates. |
@@ -60,11 +60,11 @@ P0/P1 risks remain."*
 
 | Status | Count |
 |---|---|
-| PASS | 3 sections (legal, backend/data, deployment) |
-| PARTIAL | 5 sections (design/a11y, SEO, security, QA, logging) |
+| PASS | 4 sections (legal, SEO, backend/data, deployment) |
+| PARTIAL | 4 sections (design/a11y, security, QA, logging) |
 | FAIL | 0 |
 | NOT APPLICABLE | 3 (e-commerce, analytics by decision, AI) |
-| BLOCKED | 1 (Search Console, owner access) |
+| BLOCKED | 0 |
 
 ## Remediation status — 2026-11-01
 
@@ -82,6 +82,7 @@ P0/P1 risks remain."*
 | PROD-012 tests | **Fixed** | 18 tests in `src/lib/*.test.ts`, run by `npm test` (Node's built-in runner, no new dependency). |
 | PROD-013 advisories | **Partial** | 5 moderate remain, all in the Sentry SDK chain (`@sentry/node`, `glob`, `minimatch`); no high/critical. Upgrade needs a Sentry major and is tracked. |
 | PROD-015 runbook | **Fixed** | `docs/INCIDENT.md`: checks, containment, restore, escalation, known defects, incident log. |
+| PROD-010 Search Console | **Fixed** | Property verified with the HTML tag (live in the layout); `sitemap.xml` submitted 2026-11-01 with status **Success**. |
 | Release smoke | **Fixed** | `npm run smoke` (`scripts/smoke.mjs`) and `.github/workflows/smoke.yml` (daily + manual). |
 | CI gate | **Added** | `.github/workflows/ci.yml`: typecheck, lint, tests, build on every push. |
 
@@ -90,23 +91,22 @@ P0/P1 risks remain."*
 All P0/P1 findings are closed. What remains is P2 or owner-only:
 
 1. **PROD-007** — manual screen-reader and real-device pass. (Free tools.)
-2. **PROD-010** — Search Console property and sitemap submission. (Owner action.)
-3. **PROD-014** — email domain; **not free forever**. Accepted limitation today.
-4. **PROD-013** — 5 moderate advisories in the Sentry SDK chain; needs a major
+2. **PROD-014** — email domain; **not free forever**. Accepted limitation today.
+3. **PROD-013** — 5 moderate advisories in the Sentry SDK chain; needs a major
    upgrade, no high/critical.
-5. **Rotate the Brevo SMTP key** pasted into chat, and update Supabase SMTP.
-6. **`security.txt`** expires 2027-10-31; yearly reminder.
+4. **Rotate the Brevo SMTP key** pasted into chat, and update Supabase SMTP.
+5. **`security.txt`** expires 2027-10-31; yearly reminder.
 
 ## Release decision
 
-**CONDITIONALLY READY.** All P0 and P1 findings are closed with evidence:
-backups run and verify themselves, a restore drill passed, errors are recorded,
-and availability is checked every 15 minutes. Critical journeys pass the smoke
-suite live.
+**READY.** All P0 and P1 findings are closed with evidence: backups run and
+verify themselves, a restore drill passed, errors are recorded, availability is
+checked every 15 minutes, and the site is verified in Search Console with its
+sitemap accepted. Critical journeys pass the smoke suite live.
 
-The conditions are the remaining P2 items: a manual screen-reader/device pass, a
-Search Console property (owner), the email-domain limitation, and the Sentry SDK
-advisory upgrade. None of them affect data integrity or availability.
+The remaining items are P2 polish and do not gate release: a manual
+screen-reader/device pass, the email-domain limitation, the Sentry SDK major
+upgrade, key rotation and the security.txt expiry reminder.
 
 ## Checklist items deliberately not pursued
 
