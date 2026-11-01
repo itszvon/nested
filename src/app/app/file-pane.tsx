@@ -22,7 +22,7 @@ import { removeBlankLines, tidyBlankLines } from "@/lib/whitespace";
 import { getFileSnapshot, saveFile, saveProject, type SaveProjectItem } from "./actions";
 import { Modal, NotesDialog, SaveProjectDialog, VersionHistoryDialog } from "./dialogs";
 import { RunnerPanel } from "./runner";
-import { openLintPanel } from "@codemirror/lint";
+import type { EditorIssue } from "./editor";
 
 const CodeEditor = dynamic(() => import("./editor").then((module) => module.CodeEditor), {
   ssr: false,
@@ -200,7 +200,8 @@ export function FilePane({
   const [versionsOpen, setVersionsOpen] = useState(openVersions);
   const [saveProjectOpen, setSaveProjectOpen] = useState(false);
   const [runner, setRunner] = useState<{ code: string; runId: number } | null>(null);
-  const [diagnostics, setDiagnostics] = useState(0);
+  const [diagnostics, setDiagnostics] = useState<EditorIssue[]>([]);
+  const [checksOpen, setChecksOpen] = useState(false);
   const [formatting, setFormatting] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -292,6 +293,19 @@ export function FilePane({
   function handleChange(next: string) {
     setText(next);
     scheduleDraft(next);
+  }
+
+  function jumpToIssue(issue: EditorIssue) {
+    const view = viewRef.current;
+    if (!view) return;
+
+    const from = Math.min(issue.from, view.state.doc.length);
+    const to = Math.min(Math.max(issue.to, from), view.state.doc.length);
+    view.dispatch({
+      selection: { anchor: from, head: to },
+      effects: EditorView.scrollIntoView(from, { y: "center" }),
+    });
+    view.focus();
   }
 
   function jumpToLine(lineNumber: number) {
@@ -657,12 +671,12 @@ export function FilePane({
             <button
               type="button"
               onClick={() => {
-                if (viewRef.current) openLintPanel(viewRef.current);
+                setChecksOpen((open) => !open);
               }}
               title="Show problems (syntax errors and a few checks)"
               className="h-7 border border-transparent px-2 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint hover:border-rule hover:text-ink"
             >
-              checks{diagnostics > 0 ? ` ${diagnostics}` : ""}
+              checks{diagnostics.length > 0 ? ` ${diagnostics.length}` : ""}
             </button>
           ) : null}
 
@@ -960,6 +974,51 @@ export function FilePane({
           onDiagnostics={setDiagnostics}
         />
       </div>
+
+      {checksOpen ? (
+        <div className="flex max-h-48 shrink-0 flex-col border-t border-rule bg-panel/60">
+          <div className="flex h-7 shrink-0 items-center gap-3 border-b border-rule px-3">
+            <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-ink-faint">
+              checks · {diagnostics.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => setChecksOpen(false)}
+              className="ml-auto font-mono text-[9px] uppercase tracking-[0.12em] text-ink-faint hover:text-ink"
+            >
+              close
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-auto py-1">
+            {diagnostics.length === 0 ? (
+              <p className="px-3 py-2 text-[11px] text-ink-faint">No problems found.</p>
+            ) : (
+              diagnostics.map((issue, index) => (
+                <button
+                  key={`${issue.from}:${index}`}
+                  type="button"
+                  onClick={() => jumpToIssue(issue)}
+                  className="flex w-full items-start gap-3 px-3 py-1.5 text-left hover:bg-[#111614]"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`mt-[5px] h-1.5 w-1.5 shrink-0 ${
+                      issue.severity === "error" ? "bg-red-400" : "bg-amber-300"
+                    }`}
+                  />
+                  <span className="w-10 shrink-0 text-right font-mono text-[10px] text-ink-faint">
+                    {issue.line}
+                  </span>
+                  <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-ink-dim">
+                    {issue.message}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {runner ? (
         <RunnerPanel

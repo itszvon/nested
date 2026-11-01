@@ -34,14 +34,9 @@ import {
 } from "@codemirror/language";
 import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
 import { tags } from "@lezer/highlight";
-import {
-  diagnosticCount,
-  lintGutter,
-  linter,
-  type Diagnostic,
-} from "@codemirror/lint";
+import { lintGutter, linter, type Diagnostic } from "@codemirror/lint";
 import { StreamLanguage, language, syntaxTree } from "@codemirror/language";
-import { heuristicFindings } from "@/lib/checks";
+import { heuristicFindings, jsonFindings, type Finding } from "@/lib/checks";
 import type { EditorSettings } from "@/lib/settings";
 
 // One-dark paints plain strings cyan once the Python grammar tags them as
@@ -331,35 +326,99 @@ async function loadLanguage(language: string | null): Promise<Extension[]> {
   }
 }
 
+export type EditorIssue = {
+  from: number;
+  to: number;
+  line: number;
+  severity: "error" | "warning" | "info";
+  message: string;
+};
+
 /**
- * Diagnostics come from two sources: the parser's own error nodes, which are
- * real syntax errors for every supported language, and a few narrow
- * heuristics. Nothing here claims to type-check.
+ * Diagnostics come from three sources: a real parser for JSON/YAML, the
+ * grammar's error nodes for the rest, and the language-aware heuristics. Every
+ * message names what fired; nothing claims to type-check.
  */
-function buildLinter(language: string | null) {
+function buildLinter(
+  language: string | null,
+  report: (issues: EditorIssue[]) => void,
+) {
   return linter(
-    (view) => {
+    async (view) => {
       const text = view.state.doc.toString();
-      const diagnostics: Diagnostic[] = [];
+      const findings: Finding[] = [];
+      let parserHandled = false;
 
-      syntaxTree(view.state).iterate({
-        enter(node) {
-          if (node.type.isError) {
-            diagnostics.push({
-              from: node.from,
-              to: Math.max(node.to, node.from + 1),
-              severity: "error",
-              message: "Syntax error",
-            });
+      if (language === "json") {
+        findings.push(...jsonFindings(text));
+        parserHandled = true;
+      } else if (language === "yaml") {
+        try {
+          const { load } = await import("js-yaml");
+          load(text);
+        } catch (error) {
+          const failure = error as {
+            mark?: { line: number; column: number };
+            reason?: string;
+            message?: string;
+          };
+          const lineIndex = failure.mark?.line ?? 0;
+          const column = failure.mark?.column ?? 0;
+          const starts = [0];
+          for (let index = 0; index < text.length; index++) {
+            if (text[index] === "\n") starts.push(index + 1);
           }
-        },
-      });
-
-      for (const finding of heuristicFindings(text, language)) {
-        diagnostics.push(finding);
+          const from = (starts[lineIndex] ?? 0) + column;
+          findings.push({
+            from: Math.min(from, text.length),
+            to: Math.min(from + 1, text.length),
+            severity: "error",
+            message: `Invalid YAML: ${failure.reason ?? failure.message ?? "syntax error"}`,
+          });
+        }
+        parserHandled = true;
       }
 
-      return diagnostics;
+      if (!parserHandled) {
+        const errors: Array<{ from: number; to: number }> = [];
+        syntaxTree(view.state).iterate({
+          enter(node) {
+            if (!node.type.isError) return;
+            errors.push({ from: node.from, to: Math.max(node.to, node.from + 1) });
+          },
+        });
+
+        // The grammar often reports a parent and its children; keep the widest
+        // once, so one mistake is one message.
+        const kept: Array<{ from: number; to: number }> = [];
+        for (const error of errors.sort((a, b) => a.from - b.from || b.to - a.to)) {
+          if (kept.some((done) => error.from >= done.from && error.to <= done.to)) continue;
+          kept.push(error);
+        }
+
+        for (const error of kept) {
+          const snippet = text
+            .slice(error.from, Math.min(error.to, error.from + 30))
+            .split("\n")[0]
+            .trim();
+          findings.push({
+            from: error.from,
+            to: error.to,
+            severity: "error",
+            message: snippet ? `Unexpected “${snippet}”` : "Syntax error",
+          });
+        }
+      }
+
+      findings.push(...heuristicFindings(text, language));
+
+      const issues: EditorIssue[] = findings.map((finding) => ({
+        ...finding,
+        line: view.state.doc.lineAt(Math.min(finding.from, view.state.doc.length)).number,
+      }));
+      report(issues);
+
+      return findings as Diagnostic[];
     },
     { delay: 400 },
   );
@@ -380,7 +439,7 @@ export function CodeEditor({
   settings: EditorSettings;
   onChange: (text: string) => void;
   onView: (view: EditorView | null) => void;
-  onDiagnostics?: (count: number) => void;
+  onDiagnostics?: (issues: EditorIssue[]) => void;
 }) {  
   const host = useRef<HTMLDivElement>(null);
   const languageSlot = useRef(new Compartment());
@@ -437,13 +496,15 @@ export function CodeEditor({
             ]
           : [EditorView.lineWrapping]),
         ...(settings.wordWrap ? [EditorView.lineWrapping] : []),
-        ...(isCode ? [lintGutter(), buildLinter(language)] : []),
+        ...(isCode
+          ? [
+              lintGutter(),
+              buildLinter(language, (issues) => diagnosticsHandler.current?.(issues)),
+            ]
+          : []),
         languageSlot.current.of([]),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) changeHandler.current(update.state.doc.toString());
-          if (diagnosticsHandler.current) {
-            diagnosticsHandler.current(diagnosticCount(update.state));
-          }
         }),
       ],
     });

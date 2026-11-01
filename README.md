@@ -135,7 +135,9 @@ not exist is worse than no runbook.
   multi-select delete with confirmation, duplicate, pinned files and folders,
   trash with preview and bulk restore, code editor with
   twelve languages, indent guides, rainbow brackets, go-to-line, per-language
-  formatting, copy-a-line-link and single-file download, file and
+  formatting, a checks panel with line-numbered messages (real JSON/YAML parser
+  errors plus language-aware warnings), copy-a-line-link and single-file
+  download, file and
   project version history with save notes, a browser runner for JavaScript,
   TypeScript, Python and SQL, HTML/CSS preview, JSON/YAML checking, and project
   export as a zip
