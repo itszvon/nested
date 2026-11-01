@@ -176,33 +176,6 @@ export async function renameNode(
   return { ok: true };
 }
 
-/** First lines of a file, for the tree hover preview. */
-export async function previewFile(id: string): Promise<
-  | { ok: true; name: string; size: number; lines: string[] }
-  | { ok: false; error: string }
-> {
-  await requireUser();
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("files")
-    .select("name, byte_size, content")
-    .eq("id", id)
-    .is("deleted_at", null)
-    .maybeSingle();
-
-  if (error) return { ok: false, error: explain(error.message) };
-  if (!data) return { ok: false, error: "That file no longer exists." };
-
-  const content: string = data.content ?? "";
-  const lines = content
-    .split("\n")
-    .slice(0, 10)
-    .map((line: string) => (line.length > 120 ? `${line.slice(0, 120)}…` : line));
-
-  return { ok: true, name: data.name, size: data.byte_size, lines };
-}
-
 export type SaveResult =
   | { ok: true; revision: number }
   | { ok: false; error: string };
