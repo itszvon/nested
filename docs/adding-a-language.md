@@ -6,11 +6,16 @@ The checklist for every new language. Fields change, the order does not.
 
 Three honest tiers, and the app must say which one applies:
 
-- **Runs**: JavaScript, TypeScript (types erased, then run as JavaScript), Python, SQL.
+- **Runs here**: JavaScript, TypeScript (types erased, then run as JavaScript), Python, SQL.
+- **Runs remotely**: Java, C++, Go, Rust, Bash. Sent to the sandboxed judge from /api/run when Run is pressed.
 - **Previews**: HTML, CSS. Rendered, not executed as a program.
-- **Edit only**: everything else. Coloured, checked, formatted where a formatter exists, but the Run button explains why it will not start.
+- **Edit only**: anything with no runtime configured. Coloured, checked, formatted where a formatter exists, but the Run button explains why it will not start.
 
 Never add a language to the picker without knowing its tier, because the picker promises whatever the runner denies.
+
+Remote runtimes use Judge0 language ids. Add the language to `JUDGE0_LANGUAGE`
+and confirm the id against `https://ce.judge0.com/languages`. Point
+`NESTED_RUNNER_URL` at a self-hosted instance to keep code in-house.
 
 ## 2. Database, in two migrations
 
@@ -42,7 +47,7 @@ select extension, language from public.file_extensions order by extension;
 | `src/app/app/editor.tsx` | A case in `loadLanguage`, dynamic import of the parser |
 | `src/app/app/dialogs.tsx` | Entry in `LANGUAGES` and in `EXT_LANGUAGE` |
 | `src/lib/whitespace.ts` | Add to `BRACE_LANGUAGES` if blocks use `{}`, otherwise leave it |
-| `src/app/app/runner.tsx` | `LANGUAGE_LABEL` entry so the refusal names the language |
+| `src/app/app/runner.tsx` | A tier in `src/lib/languages.ts`; remote runtimes also need an id in `src/lib/run-remote.ts` |
 | `src/app/home/page.tsx` | Language count, the list in the editor feature, the limits table |
 
 Parsers that ship a `StreamLanguage` legacy mode (Bash, for example) are wrapped differently from modern packages. Check the package before assuming the API.

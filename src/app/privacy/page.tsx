@@ -61,19 +61,38 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
+      <Section title="Running code">
+        <p>
+          Python, JavaScript, TypeScript and SQL execute inside your browser. They are never sent
+          anywhere to run.
+        </p>
+        <p>
+          Java, C++, Go, Rust and Bash need a compiler that a browser does not have. When you press
+          Run on one of those files, its contents are posted to a sandboxed execution service
+          (Judge0, or this operator&rsquo;s own instance if configured). The service runs the
+          program and returns the output. The file is not stored there by Nested, and the service is
+          not given your account details, but the code does leave this browser for that run. Do not
+          press Run on a file that must never leave your machine.
+        </p>
+      </Section>
+
       <Section title="Cookies">
         <p>
-          One cookie: the session cookie set by Supabase Auth when you sign in. It is HttpOnly,
-          SameSite=Lax, and Secure in production. Nothing else is set, which is why there is no
-          cookie banner.
+          One lasting cookie: the session cookie set by Supabase Auth when you sign in. It is
+          HttpOnly, SameSite=Lax, and Secure in production. While a Google sign-in is in progress,
+          three short-lived cookies hold the OAuth state, PKCE verifier and nonce; they expire after
+          ten minutes and are deleted as soon as the callback finishes. There is no cookie banner
+          because nothing here is used for tracking.
         </p>
       </Section>
 
       <Section title="Who can read it">
         <p>
-          Only you. Row-level security in the database ties every row to your account id, and the
-          application has no sharing feature and no administrative interface. The operator can reach
-          the database directly, as with any hosted service.
+          Only you can read your files. Row-level security in the database ties every row to your
+          account id, and the application has no sharing feature. An admin panel available to the
+          operator lists accounts, storage use, error reports and suggestions that people choose to
+          send; it does not expose file contents. The operator can still reach the database directly,
+          as with any hosted service.
         </p>
       </Section>
 
@@ -86,12 +105,13 @@ export default function PrivacyPage() {
 
       <Section title="Removing your data">
         <p>
-          There is no delete-account button yet. Email{" "}
+          Settings → Delete account removes the account, its files and its versions. You can also
+          email{" "}
           <a className="text-ink underline" href={`mailto:${SUPPORT_EMAIL}`}>
             {SUPPORT_EMAIL}
           </a>{" "}
-          from the address you signed in with and the account, its files, and its versions are
-          removed from the database. Deleting individual files and folders is available in the app.
+          from the address you signed in with. Deleting individual files and folders is available in
+          the app.
         </p>
       </Section>
 

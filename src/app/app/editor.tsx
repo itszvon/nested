@@ -16,7 +16,14 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+  redo,
+  undo,
+} from "@codemirror/commands";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import {
   autocompletion,
@@ -512,6 +519,21 @@ export function CodeEditor({
     const view = new EditorView({ state, parent: host.current });
     onView(view);
 
+    // The toolbar lives outside this dynamic chunk. It dispatches these two
+    // events on the editor's own DOM node, so the right pane responds and the
+    // main bundle never has to import CodeMirror.
+    const commandUndo = () => undo(view);
+    const commandRedo = () => redo(view);
+    view.dom.addEventListener("nested:undo", commandUndo);
+    view.dom.addEventListener("nested:redo", commandRedo);
+
+    const destroy = () => {
+      view.dom.removeEventListener("nested:undo", commandUndo);
+      view.dom.removeEventListener("nested:redo", commandRedo);
+      onView(null);
+      view.destroy();
+    };
+
     // Language packs are large; load only the one this file needs.
     if (isCode && language) {
       let cancelled = false;
@@ -523,15 +545,11 @@ export function CodeEditor({
       });
       return () => {
         cancelled = true;
-        onView(null);
-        view.destroy();
+        destroy();
       };
     }
 
-    return () => {
-      onView(null);
-      view.destroy();
-    };
+    return destroy;
     // The parent remounts with a new key per file, so this runs once per file.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

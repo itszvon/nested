@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { isCurrentUserAdmin } from "@/lib/admin";
 import { isSupabaseConfigured } from "@/lib/env";
 import { readSettings } from "@/lib/settings";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
@@ -23,6 +24,7 @@ export default async function SettingsPage() {
   if (!user) redirect("/login");
 
   const supabase = await createClient();
+  const isAdmin = await isCurrentUserAdmin();
 
   const [profile, files, folders, fileRows, versionRows, folderRows, errorRows] = await Promise.all([
     supabase
@@ -105,7 +107,8 @@ export default async function SettingsPage() {
             avatar: row?.avatar ?? null,
           }}
           settings={readSettings(row?.settings)}
-          errors={errorRows.data ?? []}
+          isAdmin={isAdmin}
+          errors={isAdmin ? (errorRows.data ?? []) : []}
           breakdown={breakdown}
           usage={{
             storageBytes: Number(row?.storage_bytes ?? 0),

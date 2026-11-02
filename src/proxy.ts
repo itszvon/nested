@@ -5,12 +5,20 @@ export async function proxy(request: NextRequest) {
   return await updateSession(request);
 }
 
+/**
+ * Only routes that need a session.
+ *
+ * The proxy revalidates the auth token on every match, which is a round trip.
+ * Running it on the marketing pages and the legal pages made them feel as slow
+ * as the app while gaining nothing; those pages are public and static.
+ */
 export const config = {
   matcher: [
-    /*
-     * Everything except static assets and the health endpoint.
-     * /api/health is polled by cron and must not create a session.
-     */
-    "/((?!_next/static|_next/image|favicon.ico|api/health|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/",
+    "/app/:path*",
+    "/settings/:path*",
+    "/login",
+    "/auth/:path*",
+    "/api/:path*",
   ],
 };

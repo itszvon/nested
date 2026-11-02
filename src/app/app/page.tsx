@@ -49,7 +49,10 @@ export default async function AppPage({
   const [{ folders, files }, params, profile] = await Promise.all([
     getWorkspaceRows(),
     searchParams,
-    supabase.from("profiles").select("display_name, avatar, settings").maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("display_name, avatar, settings, is_admin")
+      .maybeSingle(),
   ]);
 
   const settings = readSettings(profile.data?.settings);
@@ -93,6 +96,24 @@ export default async function AppPage({
         <SidebarToggle />
 
         <div className="ml-auto flex items-center gap-4">
+          <Link
+            href="/settings/suggestions"
+            title="Send a suggestion"
+            className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint hover:text-ink"
+          >
+            suggest
+          </Link>
+
+          {profile.data?.is_admin ? (
+            <Link
+              href="/settings/admin"
+              title="Admin panel"
+              className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--color-accent-text)] hover:text-ink"
+            >
+              admin
+            </Link>
+          ) : null}
+
           <Link
             href="/settings"
             aria-label="Account settings"

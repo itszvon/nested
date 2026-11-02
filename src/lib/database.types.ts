@@ -39,6 +39,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      error_events: {
+        Row: {
+          created_at: string
+          digest: string | null
+          id: string
+          message: string
+          path: string | null
+          source: string
+          stack: string | null
+        }
+        Insert: {
+          created_at?: string
+          digest?: string | null
+          id?: string
+          message: string
+          path?: string | null
+          source: string
+          stack?: string | null
+        }
+        Update: {
+          created_at?: string
+          digest?: string | null
+          id?: string
+          message?: string
+          path?: string | null
+          source?: string
+          stack?: string | null
+        }
+        Relationships: []
+      }
       file_extensions: {
         Row: {
           extension: string
@@ -230,6 +260,7 @@ export type Database = {
           display_name: string | null
           email: string | null
           id: string
+          is_admin: boolean
           settings: Json
           storage_bytes: number
           username: string
@@ -240,6 +271,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id: string
+          is_admin?: boolean
           settings?: Json
           storage_bytes?: number
           username: string
@@ -250,6 +282,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id?: string
+          is_admin?: boolean
           settings?: Json
           storage_bytes?: number
           username?: string
@@ -297,6 +330,73 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suggestion_notes: {
+        Row: {
+          note: string
+          suggestion_id: string
+          updated_at: string
+        }
+        Insert: {
+          note: string
+          suggestion_id: string
+          updated_at?: string
+        }
+        Update: {
+          note?: string
+          suggestion_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suggestion_notes_suggestion_id_fkey"
+            columns: ["suggestion_id"]
+            isOneToOne: true
+            referencedRelation: "suggestions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suggestions: {
+        Row: {
+          body: string
+          category: Database["public"]["Enums"]["suggestion_category"]
+          created_at: string
+          id: string
+          status: Database["public"]["Enums"]["suggestion_status"]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          category?: Database["public"]["Enums"]["suggestion_category"]
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["suggestion_status"]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          category?: Database["public"]["Enums"]["suggestion_category"]
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["suggestion_status"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suggestions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -370,8 +470,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_overview: { Args: never; Returns: Json }
+      admin_users: {
+        Args: never
+        Returns: {
+          created_at: string
+          display_name: string
+          email: string
+          files: number
+          id: string
+          is_admin: boolean
+          last_activity: string
+          storage_bytes: number
+          username: string
+        }[]
+      }
       delete_my_account: { Args: never; Returns: undefined }
+      duplicate_node: {
+        Args: { p_id: string; p_kind: string }
+        Returns: string
+      }
       empty_trash: { Args: never; Returns: number }
+      is_admin: { Args: never; Returns: boolean }
       move_node: {
         Args: {
           p_id: string
@@ -382,6 +502,7 @@ export type Database = {
         Returns: undefined
       }
       project_of_folder: { Args: { p_folder: string }; Returns: string }
+      prune_versions: { Args: { p_keep: number }; Returns: number }
       purge_trash: { Args: { p_days?: number }; Returns: number }
       reorder_nodes: {
         Args: { p_ids: string[]; p_kind: string; p_parent: string }
@@ -393,8 +514,6 @@ export type Database = {
       }
       restore_project: { Args: { p_snapshot_id: string }; Returns: number }
       restore_version: { Args: { p_version_id: string }; Returns: string }
-      duplicate_node: { Args: { p_id: string; p_kind: string }; Returns: string }
-      prune_versions: { Args: { p_keep: number }; Returns: number }
       save_file: {
         Args: {
           p_content: string
@@ -416,6 +535,16 @@ export type Database = {
         }[]
       }
       trash_node: { Args: { p_id: string; p_kind: string }; Returns: number }
+      unique_copy_name: {
+        Args: {
+          p_is_folder: boolean
+          p_name: string
+          p_owner: string
+          p_parent: string
+        }
+        Returns: string
+      }
+      welcome_document: { Args: never; Returns: string }
     }
     Enums: {
       file_kind: "markdown" | "code"
@@ -433,6 +562,19 @@ export type Database = {
         | "bash"
         | "json"
         | "yaml"
+      suggestion_category:
+        | "feature"
+        | "bug"
+        | "performance"
+        | "design"
+        | "content"
+        | "other"
+      suggestion_status:
+        | "new"
+        | "reviewing"
+        | "planned"
+        | "shipped"
+        | "declined"
       version_source: "file" | "project" | "auto"
     }
     CompositeTypes: {
@@ -580,6 +722,15 @@ export const Constants = {
         "json",
         "yaml",
       ],
+      suggestion_category: [
+        "feature",
+        "bug",
+        "performance",
+        "design",
+        "content",
+        "other",
+      ],
+      suggestion_status: ["new", "reviewing", "planned", "shipped", "declined"],
       version_source: ["file", "project", "auto"],
     },
   },

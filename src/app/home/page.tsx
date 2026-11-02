@@ -2,9 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BackToTop } from "./back-to-top";
 import { NestingDemo, VersionScrubber } from "./archive-demo";
-import { connection } from "next/server";
-import { isSupabaseConfigured } from "@/lib/env";
-import { getCurrentUser } from "@/lib/supabase/server";
+
 
 export const metadata: Metadata = {
   title: "Nested · notes and code in folders inside folders",
@@ -40,7 +38,7 @@ const FAQ = [
   },
   {
     q: "Which languages actually run?",
-    a: "JavaScript, TypeScript, Python and SQL run in your browser. HTML and CSS render a preview. JSON and YAML are parsed and checked, and Run prints the parsed result. Java, Go, Rust, C++ and Bash are edited and checked but need their own tool.",
+    a: "JavaScript, TypeScript, Python and SQL run in your browser. HTML and CSS render a preview. JSON and YAML are parsed and checked, and Run prints the parsed result. Java, Go, Rust, C++ and Bash run in a sandboxed remote judge, so pressing Run sends that file off this machine for the run.",
   },
   {
     q: "What happens when I delete something?",
@@ -171,15 +169,10 @@ function ProductMock() {
   );
 }
 
-// The page reads the session to label its buttons, so it renders per request.
-export const instant = false;
-
-export default async function LandingPage() {
-  await connection();
-
-  const signedIn =
-    isSupabaseConfigured() ? Boolean(await getCurrentUser()) : false;
-
+// Static on purpose: no cookies, no session read. That is what lets this page
+// be prerendered and served from the edge instead of rendered per request.
+// /app and the proxy send signed-out visitors to /login.
+export default function LandingPage() {
   return (
     <div id="top" className="min-h-dvh">
       <script
@@ -217,10 +210,10 @@ export default async function LandingPage() {
               Limits
             </a>
             <Link
-              href={signedIn ? "/app" : "/login"}
+              href="/app"
               className="border border-accent bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white"
             >
-              {signedIn ? "Open app" : "Sign in"}
+              Open app
             </Link>
           </nav>
         </div>
@@ -248,10 +241,10 @@ export default async function LandingPage() {
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <Link
-              href={signedIn ? "/app" : "/login"}
+              href="/app"
               className="border border-accent bg-accent px-5 py-3 font-mono text-[10px] uppercase tracking-[0.14em] text-white"
             >
-              {signedIn ? "Open the app" : "Continue with Google"}
+              Open the app
             </Link>
             <a
               href="#how"
@@ -334,9 +327,9 @@ export default async function LandingPage() {
                 allow, and they are on this page before anyone signs in.
               </p>
               <p className="mt-4 max-w-md text-[13px] leading-relaxed text-ink-faint">
-                JavaScript, TypeScript, Python and SQL run in the browser. Everything else
-                is edited, coloured and checked but not executed, because that would mean sending
-                your code to a server.
+                JavaScript, TypeScript, Python and SQL run in the browser. HTML and CSS preview.
+                Java, C++, Go, Rust and Bash run in a remote sandbox, so only those files leave
+                your machine, only when you press Run.
               </p>
             </div>
 
@@ -362,10 +355,10 @@ export default async function LandingPage() {
               </p>
             </div>
             <Link
-              href={signedIn ? "/app" : "/login"}
+              href="/app"
               className="border border-accent bg-accent px-5 py-3 font-mono text-[10px] uppercase tracking-[0.14em] text-white sm:ml-auto"
             >
-              {signedIn ? "Open the app" : "Continue with Google"}
+              Open the app
             </Link>
           </div>
         </section>

@@ -5,7 +5,7 @@
  * cannot claim to run in one place and refuse in another.
  */
 
-export type LanguageStatus = "runs" | "preview" | "checks" | "external";
+export type LanguageStatus = "runs" | "remote" | "preview" | "checks" | "external";
 
 export type LanguageInfo = {
   label: string;
@@ -20,18 +20,19 @@ export const LANGUAGE_INFO: Record<string, LanguageInfo> = {
   html: { label: "HTML", status: "preview" },
   css: { label: "CSS", status: "preview" },
   typescript: { label: "TypeScript", status: "runs" },
-  java: { label: "Java", status: "external", tool: "a JDK" },
-  cpp: { label: "C++", status: "external", tool: "a C++ compiler" },
-  go: { label: "Go", status: "external", tool: "the go command" },
-  rust: { label: "Rust", status: "external", tool: "cargo" },
+  java: { label: "Java", status: "remote" },
+  cpp: { label: "C++", status: "remote" },
+  go: { label: "Go", status: "remote" },
+  rust: { label: "Rust", status: "remote" },
   sql: { label: "SQL", status: "runs" },
-  bash: { label: "Bash", status: "external", tool: "a shell" },
+  bash: { label: "Bash", status: "remote" },
   json: { label: "JSON", status: "checks" },
   yaml: { label: "YAML", status: "checks" },
 };
 
 export const STATUS_LABEL: Record<LanguageStatus, string> = {
   runs: "runs here",
+  remote: "runs remotely",
   preview: "preview only",
   checks: "checked here",
   external: "external tool",
@@ -49,6 +50,16 @@ export function languageStatus(language: string | null): LanguageStatus {
 
 export function runsHere(language: string | null): boolean {
   return languageStatus(language) === "runs";
+}
+
+/** Runs in the browser or in the remote sandbox. */
+export function canRun(language: string | null): boolean {
+  const status = languageStatus(language);
+  return status === "runs" || status === "remote";
+}
+
+export function runsRemotely(language: string | null): boolean {
+  return languageStatus(language) === "remote";
 }
 
 export function previewsHere(language: string | null): boolean {

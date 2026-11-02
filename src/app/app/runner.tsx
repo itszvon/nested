@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RUNNER_WORKER_SOURCE } from "@/lib/runner-worker";
-import { LANGUAGE_INFO, languageLabel } from "@/lib/languages";
+import {
+  LANGUAGE_INFO,
+  canRun,
+  languageLabel,
+  runsRemotely,
+} from "@/lib/languages";
 
 /**
  * Runs a file, locally, inside a sandboxed iframe.
@@ -111,16 +116,8 @@ function cssDocument(code: string) {
 
 type ConsoleLine = { kind: "out" | "ask" | "in" | "err"; text: string };
 
-const SUPPORTED = new Set([
-  "javascript",
-  "python",
-  "typescript",
-  "sql",
-  "html",
-  "css",
-  "json",
-  "yaml",
-]);
+const CHECKS = new Set(["json", "yaml"]);
+const PREVIEWS = new Set(["html", "css"]);
 
 export function RunnerPanel({
   language,
@@ -148,6 +145,7 @@ export function RunnerPanel({
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const [answer, setAnswer] = useState("");
   const workerRef = useRef<Worker | null>(null);
+  const remoteAbort = useRef<AbortController | null>(null);
   const controlRef = useRef<Int32Array | null>(null);
   const bufferRef = useRef<SharedArrayBuffer | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -192,8 +190,10 @@ export function RunnerPanel({
     };
   }, []);
 
-  const supported = language !== null && SUPPORTED.has(language);
-  const preview = language === "html" || language === "css";
+  const remote = runsRemotely(language);
+  const supported =
+    language !== null && (canRun(language) || CHECKS.has(language) || PREVIEWS.has(language));
+  const preview = language !== null && PREVIEWS.has(language);
   // TypeScript and SQL load their runtimes in the worker, which needs the
   // shared-memory isolation that Python and JavaScript already require.
   const needsIsolation = language === "typescript" || language === "sql";
@@ -212,7 +212,7 @@ export function RunnerPanel({
   const bumpIdle = useCallback(() => {
     if (!supported) return;
     if (idleTimer.current) clearTimeout(idleTimer.current);
-    const limit = language === "python" ? 120000 : 15000;
+    const limit = remote ? 45000 : language === "python" ? 120000 : 15000;
     idleTimer.current = setTimeout(() => {
       setStatus((current) => (current === "running" ? "timeout" : current));
       setLines((current) => [
@@ -220,7 +220,7 @@ export function RunnerPanel({
         { kind: "err", text: `No output for ${limit / 1000}s, stopped.` },
       ]);
     }, limit);
-  }, [language, supported]);
+  }, [language, supported, remote]);
 
   useEffect(() => {
     setLines([]);
@@ -262,8 +262,94 @@ export function RunnerPanel({
     };
   }, [language, code, runId]);
 
+  /**
+   * Java, C++, Go, Rust and Bash have no browser runtime. The file is posted
+   * to /api/run, which forwards it to the sandboxed judge and returns the
+   * output. Nothing about this path is silent: the panel says the code left
+   * the browser.
+   */
+  useEffect(() => {
+    if (!remote || !language) return;
+
+    const controller = new AbortController();
+    remoteAbort.current = controller;
+    let cancelled = false;
+
+    setLines([
+      {
+        kind: "out",
+        text: `sending to the remote sandbox (${languageLabel(language)})…`,
+      },
+    ]);
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({ language, code }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (cancelled) return;
+
+        if (!response.ok) {
+          setLines((current) => [
+            ...current,
+            { kind: "err", text: String(data?.error ?? "The runner refused this file.") },
+          ]);
+          setStatus("done");
+          return;
+        }
+
+        const parts: string[] = [];
+        if (data.compileOutput) parts.push(String(data.compileOutput).trimEnd());
+        if (data.stdout) parts.push(String(data.stdout).trimEnd());
+        if (data.stderr) parts.push(String(data.stderr).trimEnd());
+        if (data.error) parts.push(String(data.error));
+
+        setLines((current) => [
+          ...current,
+          ...parts.map((text) => ({ kind: "out" as const, text })),
+          ...(data.ok
+            ? [{ kind: "out" as const, text: `finished · ${data.status}${data.time ? ` · ${data.time}s` : ""}` }]
+            : [
+                {
+                  kind: "err" as const,
+                  text: parts.length > 0 ? `exited · ${data.status}` : String(data.status),
+                },
+              ]),
+        ]);
+        setStatus("done");
+      } catch (error) {
+        if (cancelled || controller.signal.aborted) return;
+        setLines((current) => [
+          ...current,
+          {
+            kind: "err",
+            text:
+              error instanceof Error
+                ? error.message
+                : "The remote runner could not be reached.",
+          },
+        ]);
+        setStatus("done");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      remoteAbort.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId, remote, language]);
+
   /** Kills the runtime. The only way out of a `while True` without waiting. */
   function stop() {
+    remoteAbort.current?.abort();
+    remoteAbort.current = null;
     workerRef.current?.terminate();
     workerRef.current = null;
     setStatus("done");
@@ -444,8 +530,16 @@ export function RunnerPanel({
       />
       <div className="flex h-8 shrink-0 items-center gap-3 border-b border-rule px-3">
         <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">
-          {preview ? "preview" : "output"}
+          {preview ? "preview" : remote ? "remote output" : "output"}
         </span>
+        {remote ? (
+          <span
+            title="This file is sent to a sandboxed judge; it leaves your browser."
+            className="border border-[var(--color-accent)]/40 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.1em] text-[var(--color-accent-text)]"
+          >
+            sandbox
+          </span>
+        ) : null}
         <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-faint">
           {!supported
             ? "unsupported"
@@ -491,7 +585,8 @@ export function RunnerPanel({
           </p>
           <p className="mt-1 text-ink-faint">
             JavaScript, TypeScript, Python and SQL execute in the browser. HTML and CSS render a
-            preview. Nothing is sent anywhere.
+            preview. Java, C++, Go, Rust and Bash run in a remote sandbox, so the file leaves
+            this browser when you press Run.
           </p>
         </div>
       ) : preview ? (
@@ -548,7 +643,7 @@ export function RunnerPanel({
               <p className="text-ink-faint">▌</p>
             ) : null}
           </div>
-          {usesWorker || stopped ? null : (
+          {usesWorker || stopped || remote ? null : (
             <iframe
               key={runId}
               title="Runner"

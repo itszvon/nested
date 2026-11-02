@@ -3,8 +3,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { redo, undo } from "@codemirror/commands";
-import { EditorView } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 import type { OpenFile } from "@/lib/files";
 import type { FileRow } from "@/lib/tree";
 import { deleteDraft, getDraft, putDraft, type Draft } from "@/lib/drafts";
@@ -21,13 +20,23 @@ import { RUNNER_ENABLED } from "@/lib/site";
 import { removeBlankLines, tidyBlankLines } from "@/lib/whitespace";
 import { getFileSnapshot, saveFile, saveProject, type SaveProjectItem } from "./actions";
 import { Modal, NotesDialog, SaveProjectDialog, VersionHistoryDialog } from "./dialogs";
-import { RunnerPanel } from "./runner";
 import type { EditorIssue } from "./editor";
 
 const CodeEditor = dynamic(() => import("./editor").then((module) => module.CodeEditor), {
   ssr: false,
   loading: () => (
     <div className="px-4 py-3 font-mono text-[11px] text-ink-faint">loading editor</div>
+  ),
+});
+
+// Only fetched when Run is pressed. It carries the Python/SQL worker source
+// and the remote-run plumbing, none of which is needed to open a file.
+const RunnerPanel = dynamic(() => import("./runner").then((module) => module.RunnerPanel), {
+  ssr: false,
+  loading: () => (
+    <div className="border-t border-rule px-3 py-2 font-mono text-[11px] text-ink-faint">
+      opening runner
+    </div>
   ),
 });
 
@@ -303,7 +312,7 @@ export function FilePane({
     const to = Math.min(Math.max(issue.to, from), view.state.doc.length);
     view.dispatch({
       selection: { anchor: from, head: to },
-      effects: EditorView.scrollIntoView(from, { y: "center" }),
+      scrollIntoView: true,
     });
     view.focus();
   }
@@ -316,7 +325,7 @@ export function FilePane({
     const line = view.state.doc.line(target);
     view.dispatch({
       selection: { anchor: line.from, head: line.to },
-      effects: EditorView.scrollIntoView(line.from, { y: "center" }),
+      scrollIntoView: true,
     });
     view.focus();
   }
@@ -601,7 +610,13 @@ export function FilePane({
 
         <span className="hidden shrink-0 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint md:inline">
           {file.kind === "code"
-            ? `${languageLabel(file.language)}${languageStatus(file.language) === "external" ? " / external" : ""}`
+            ? `${languageLabel(file.language)}${
+                languageStatus(file.language) === "remote"
+                  ? " / remote"
+                  : languageStatus(file.language) === "external"
+                    ? " / external"
+                    : ""
+              }`
             : "text"}
         </span>
         <span className="hidden shrink-0 font-mono text-[10px] text-ink-faint md:inline">
@@ -617,7 +632,7 @@ export function FilePane({
         <div className="ml-auto flex shrink-0 items-center gap-1">
           <button
             type="button"
-            onClick={() => viewRef.current && undo(viewRef.current)}
+            onClick={() => viewRef.current?.dom.dispatchEvent(new Event("nested:undo"))}
             aria-label="Undo"
             title="Undo (Ctrl+Z)"
             className="h-7 w-7 border border-transparent font-mono text-[12px] text-ink-faint hover:border-rule hover:text-ink"
@@ -626,7 +641,7 @@ export function FilePane({
           </button>
           <button
             type="button"
-            onClick={() => viewRef.current && redo(viewRef.current)}
+            onClick={() => viewRef.current?.dom.dispatchEvent(new Event("nested:redo"))}
             aria-label="Redo"
             title="Redo (Ctrl+Shift+Z)"
             className="h-7 w-7 border border-transparent font-mono text-[12px] text-ink-faint hover:border-rule hover:text-ink"

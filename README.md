@@ -87,6 +87,10 @@ Open http://localhost:3000.
 | `NEXT_PUBLIC_SUPABASE_URL` | yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | yes | Browser-safe API key |
 | `NEXT_PUBLIC_SITE_URL` | production | Canonical origin used by the sitemap and legal pages |
+| `GOOGLE_CLIENT_ID` | optional | With the secret, makes Google name this site in the chooser (see `docs/OAUTH-DOMAIN.md`) |
+| `GOOGLE_CLIENT_SECRET` | optional | Same; without both, the Supabase-hosted callback is used |
+| `NESTED_RUNNER_URL` | optional | Judge0-compatible endpoint for Java/C++/Go/Rust/Bash; defaults to public Judge0 CE |
+| `NESTED_RUNNER_KEY` | optional | Sent as `X-Auth-Token` to the runner endpoint |
 | `NEXT_PUBLIC_SENTRY_DSN` | optional | Browser error reporting; no-op when absent |
 | `SENTRY_DSN` | optional | Server error reporting |
 
@@ -101,6 +105,10 @@ database password, not an API key.
 font size, wrapping, line numbers), storage usage, a JSON export of everything,
 and account deletion. Preferences live in `profiles.settings` and follow the
 account across devices.
+
+`/settings/suggestions` is the suggestion box. The operator account also gets
+`/settings/admin`: the suggestion inbox, account list, storage overview and
+error log. See `docs/ADMIN.md`.
 
 ## Live
 

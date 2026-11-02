@@ -73,8 +73,8 @@ useful half of each and drops the ceremony.
   - **runs here** — JavaScript, TypeScript (types erased), Python, SQL.
   - **preview only** — HTML, CSS.
   - **checked here** — JSON and YAML are parsed; Run prints the parsed result.
-  - **external tool** — Java, Go, Rust, C++, Bash are edited, highlighted and
-    checked, and the Run button says what to use instead.
+  - **runs remotely** — Java, Go, Rust, C++, Bash are sent to a sandboxed judge
+    when Run is pressed. The panel says the file leaves the browser.
 - Formatting exists only where a formatter is bundled (Prettier for JS, TS, HTML,
   CSS, JSON; Ruff for Python; clang-format for C++; prettier-plugin-java for
   Java). The button hides otherwise.
@@ -124,6 +124,10 @@ useful half of each and drops the ceremony.
 - Any two files can be compared in a side-by-side line diff, independent of the
   version browser.
 - Command palette on Ctrl/Cmd+K over file and folder names plus a few actions.
+- Settings carries a suggestion form. The operator's account also sees an admin
+  panel: suggestion triage, account and storage overview, and error reports.
+- Only the operator account is an admin. The flag is a database column that
+  authenticated users cannot write.
 - A shortcut table in Settings documents every keyboard action.
 - An onboarding document is created for every new account.
 - A plain, dense interface: monospace labels, 1px rules, one accent colour.

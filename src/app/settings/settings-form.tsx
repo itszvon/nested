@@ -18,31 +18,45 @@ import {
 
 const QUOTA = 25 * 1024 * 1024;
 
-const NAV: Array<{ group: string; links: Array<[string, string]> }> = [
-  {
-    group: "Account",
-    links: [
-      ["profile", "Profile"],
-      ["versions", "Versions"],
-    ],
-  },
-  {
-    group: "Editor",
-    links: [
-      ["editor", "Editor"],
-      ["shortcuts", "Shortcuts"],
-    ],
-  },
-  { group: "Workspace", links: [["storage", "Storage"]] },
-  {
-    group: "Data",
-    links: [
-      ["data", "Export"],
-      ["errors", "Errors"],
-      ["delete", "Delete account"],
-    ],
-  },
-];
+/** `href` is either an anchor on this page or another settings route. */
+function navFor(isAdmin: boolean): Array<{ group: string; links: Array<[string, string]> }> {
+  return [
+    {
+      group: "Account",
+      links: [
+        ["#profile", "Profile"],
+        ["#versions", "Versions"],
+      ],
+    },
+    {
+      group: "Editor",
+      links: [
+        ["#editor", "Editor"],
+        ["#shortcuts", "Shortcuts"],
+      ],
+    },
+    { group: "Workspace", links: [["#storage", "Storage"]] },
+    {
+      group: "Data",
+      links: [
+        ["#data", "Export"],
+        ["#delete", "Delete account"],
+      ],
+    },
+    {
+      group: "Product",
+      links: [
+        ["/settings/suggestions", "Suggestions"],
+        ...(isAdmin
+          ? [
+              ["#errors", "Errors"],
+              ["/settings/admin", "Admin panel"],
+            ]
+          : []),
+      ] as Array<[string, string]>,
+    },
+  ];
+}
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -84,9 +98,11 @@ export function SettingsForm({
   usage,
   breakdown,
   errors,
+  isAdmin,
 }: {
   profile: { username: string; email: string; displayName: string; avatar: string | null };
   settings: EditorSettings;
+  isAdmin: boolean;
   usage: { storageBytes: number; files: number; folders: number };
   breakdown: {
     fileBytes: number;
@@ -312,16 +328,16 @@ export function SettingsForm({
     <div className="grid gap-10 lg:grid-cols-[150px_minmax(0,1fr)]">
       <nav aria-label="Settings sections" className="hidden lg:block">
         <div className="sticky top-8 space-y-6">
-          {NAV.map((group) => (
+          {navFor(isAdmin).map((group) => (
             <div key={group.group}>
               <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-faint">
                 {group.group}
               </p>
               <ul className="space-y-1">
-                {group.links.map(([id, label]) => (
-                  <li key={id}>
+                {group.links.map(([href, label]) => (
+                  <li key={href}>
                     <a
-                      href={`#${id}`}
+                      href={href}
                       className="block font-mono text-[10px] uppercase tracking-[0.1em] text-ink-dim hover:text-ink"
                     >
                       {label}
@@ -895,10 +911,11 @@ export function SettingsForm({
         </button>
       </Section>
 
+      {isAdmin ? (
       <Section
         id="errors"
         title="Errors"
-        hint="The ten most recent client and server errors. Written by the app; no third party."
+        hint="The ten most recent client and server errors. Admin only. Written by the app; no third party."
       >
         {errors.length === 0 ? (
           <p className="border border-rule px-3 py-3 text-[11px] text-ink-faint">
@@ -927,6 +944,7 @@ export function SettingsForm({
           </ul>
         )}
       </Section>
+      ) : null}
 
       <Section
         id="delete"

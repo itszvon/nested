@@ -26,26 +26,16 @@ const LANGUAGES = [
   { id: "python", label: "Python", ext: "py", status: "runs" },
   { id: "javascript", label: "JavaScript", ext: "js", status: "runs" },
   { id: "htmlcss", label: "HTML/CSS", ext: "html", status: "preview" },
-  { id: "typescript", label: "TypeScript", ext: "ts", status: "external" },
-  { id: "java", label: "Java", ext: "java", status: "external" },
-  { id: "go", label: "Go", ext: "go", status: "external" },
-  { id: "rust", label: "Rust", ext: "rs", status: "external" },
-  { id: "cpp", label: "C++", ext: "cpp", status: "external" },
-  { id: "sql", label: "SQL", ext: "sql", status: "external" },
-  { id: "bash", label: "Bash", ext: "sh", status: "external" },
+  { id: "typescript", label: "TypeScript", ext: "ts", status: "runs" },
+  { id: "java", label: "Java", ext: "java", status: "remote" },
+  { id: "go", label: "Go", ext: "go", status: "remote" },
+  { id: "rust", label: "Rust", ext: "rs", status: "remote" },
+  { id: "cpp", label: "C++", ext: "cpp", status: "remote" },
+  { id: "sql", label: "SQL", ext: "sql", status: "runs" },
+  { id: "bash", label: "Bash", ext: "sh", status: "remote" },
   { id: "json", label: "JSON", ext: "json", status: "checks" },
   { id: "yaml", label: "YAML", ext: "yaml", status: "checks" },
 ] as const;
-
-const TOOL: Record<string, string> = {
-  typescript: "tsc or node",
-  java: "a JDK",
-  go: "the go command",
-  rust: "cargo",
-  cpp: "a C++ compiler",
-  sql: "a database client",
-  bash: "a shell",
-};
 
 const EXT_LANGUAGE: Record<string, string> = {
   py: "python",
@@ -276,8 +266,8 @@ export function NewFileDialog({
               {LANGUAGES.map((entry) => (
                 <option key={entry.id} value={entry.id} className="bg-panel">
                   {entry.label}
-                  {entry.status === "external"
-                    ? "  ·  external tool"
+                  {entry.status === "remote"
+                    ? "  ·  runs remotely"
                     : entry.status === "preview"
                       ? "  ·  preview only"
                       : entry.status === "checks"
@@ -290,11 +280,11 @@ export function NewFileDialog({
             <p className="text-[11px] leading-relaxed text-ink-faint">
               {selectedLanguage.status === "runs"
                 ? "Runs inside Nested."
-                : selectedLanguage.status === "preview"
-                  ? "HTML and CSS render as a preview. Nothing executes."
-                  : selectedLanguage.status === "checks"
-                    ? "Parsed and checked in the browser. Run prints the parsed result."
-                    : `Does not run in Nested. Use ${TOOL[selectedLanguage.id]} on your machine.`}
+                : selectedLanguage.status === "remote"
+                  ? "Runs in a sandboxed remote judge. Press Run to send this file there."
+                  : selectedLanguage.status === "preview"
+                    ? "HTML and CSS render as a preview. Nothing executes."
+                    : "Parsed and checked in the browser. Run prints the parsed result."}
             </p>
           </div>
         ) : (
