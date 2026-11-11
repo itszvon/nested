@@ -26,6 +26,24 @@
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
   --radius-none: 0px;
+
+  /*
+   * Landing page palette: the same ledger, lit from below. A deeper ground
+   * than the app, paper-warm ink, and a hotter version of the oxblood accent
+   * that can carry light. The app keeps the original tokens above.
+   */
+  --color-void: #06070a;
+  --color-shell: #0a0c11;
+  --color-raise: #0f1219;
+  --color-hair: #1c2028;
+  --color-hair-strong: #2e343f;
+  --color-bright: #f3f0e9;
+  --color-mute: #a5a8b0;
+  --color-ghost: #83878f;
+  --color-ember: #ff6b45;
+  --color-ember-soft: #ff9c80;
+  --color-ember-deep: #7a2b19;
+  --color-sage: #a9d9b8;
 }
 
 html {
@@ -67,6 +85,400 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ==========================================================================
+   Landing page
+
+   The ground is a fixed grid with a soft ember bloom behind the hero. The
+   interface itself stays sharp: hairlines, no radii, no glass. Depth comes
+   from layered light, not from rounded cards.
+   ========================================================================== */
+
+html:has(.landing) {
+  scroll-behavior: smooth;
+}
+
+.landing {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  background: var(--color-void);
+  color: var(--color-bright);
+}
+
+/* A ledger margin rather than a decorative grid: two rules at the content
+   edges, fading out down the page. */
+.landing::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: min(1240px, calc(100% - 3rem));
+  margin-inline: auto;
+  pointer-events: none;
+  border-inline: 1px solid rgba(243, 240, 233, 0.07);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 58%, transparent 92%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 58%, transparent 92%);
+}
+
+/* Film grain: the cheapest way to keep flat black from looking like a void. */
+.landing::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+}
+
+/* Header keeps its own sticky positioning; the rest of the page sits above
+   the fixed grid and grain. */
+.landing > main,
+.landing > footer {
+  position: relative;
+  z-index: 1;
+}
+
+.landing ::selection {
+  background: var(--color-ember);
+  color: var(--color-void);
+}
+
+.landing :focus-visible {
+  outline: 1px solid var(--color-ember);
+  outline-offset: 3px;
+}
+
+/* Hero light: a warm bloom under the artifact, plus a cold counterweight. */
+.hero-bloom {
+  position: absolute;
+  inset: -10% -20% auto;
+  height: 780px;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 52% at 72% 32%, rgba(255, 107, 69, 0.22), transparent 70%),
+    radial-gradient(34% 40% at 18% 12%, rgba(129, 151, 255, 0.08), transparent 76%),
+    radial-gradient(60% 30% at 50% 0%, rgba(255, 156, 128, 0.07), transparent 70%);
+  filter: blur(6px);
+}
+
+/* The hero artifact sits inside two receding frames. The frames are the
+   page's one literal gesture: things nested inside things. */
+.hero-window-wrap {
+  position: relative;
+  z-index: 0;
+}
+
+.hero-window-wrap::before,
+.hero-window-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1px solid var(--color-hair);
+  pointer-events: none;
+}
+
+.hero-window-wrap::before {
+  transform: translate(14px, 14px);
+  opacity: 0.75;
+}
+
+.hero-window-wrap::after {
+  transform: translate(28px, 28px);
+  opacity: 0.4;
+}
+
+.hero-window {
+  border: 1px solid var(--color-hair-strong);
+  background:
+    linear-gradient(180deg, rgba(243, 240, 233, 0.04), transparent 26%),
+    var(--color-shell);
+  box-shadow:
+    0 60px 140px -44px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(243, 240, 233, 0.03),
+    0 0 110px -32px rgba(255, 107, 69, 0.26);
+}
+
+/* Syntax language for the demo code only. Content, not chrome. */
+.tok-k { color: var(--color-ember-soft); }
+.tok-f { color: #ffd9a8; }
+.tok-s { color: var(--color-sage); }
+.tok-n { color: #c3b6ff; }
+.tok-c { color: #6b7079; }
+
+/* One authored entrance for the hero, staggered by inline delay. */
+@keyframes lg-rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lg-in {
+  animation: lg-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Sections surface as they enter, where scroll-driven animation exists. */
+@keyframes lg-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .lg-reveal {
+      animation: lg-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 6% cover 24%;
+    }
+  }
+}
+
+/* A divider that reads as a measured rule rather than a full-bleed line. */
+.lg-rule {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--color-hair-strong) 12%,
+    var(--color-hair-strong) 88%,
+    transparent
+  );
+}
+
+/* Language marquee. Pauses on hover; disabled by the reduced-motion rule. */
+@keyframes lg-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.lg-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: lg-marquee 46s linear infinite;
+}
+
+.lg-marquee:hover .lg-marquee-track {
+  animation-play-state: paused;
+}
+
+/* Small caps label used for metadata and column headers. */
+.lg-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ghost);
+}
+
+/* Nav links: an ember hairline grows from the left on hover. */
+.lg-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  color: var(--color-mute);
+  transition: color 160ms ease;
+}
+
+.lg-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--color-ember);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lg-link:hover {
+  color: var(--color-bright);
+}
+
+.lg-link:hover::after {
+  transform: scaleX(1);
+}
+
+/* Primary button: solid ember, dark ink, a shadow that reads as light spill. */
+.lg-button-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-ember);
+  color: var(--color-void);
+  border: 1px solid var(--color-ember);
+  padding: 14px 22px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 34px -14px rgba(255, 107, 69, 0.8);
+  transition:
+    background 160ms ease,
+    box-shadow 200ms ease,
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lg-button-primary:hover {
+  background: var(--color-ember-soft);
+  box-shadow: 0 14px 42px -12px rgba(255, 107, 69, 0.9);
+  transform: translateY(-1px);
+}
+
+.lg-button-primary svg {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lg-button-primary:hover svg {
+  transform: translate(2px, -2px);
+}
+
+.lg-button-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--color-hair-strong);
+  color: var(--color-mute);
+  padding: 14px 22px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.lg-button-ghost:hover {
+  color: var(--color-bright);
+  border-color: var(--color-ghost);
+  background: rgba(243, 240, 233, 0.03);
+}
+
+/* Artifact shells shared by the three feature panels. */
+.lg-panel {
+  position: relative;
+  border: 1px solid var(--color-hair-strong);
+  background:
+    linear-gradient(180deg, rgba(243, 240, 233, 0.025), transparent 30%),
+    var(--color-shell);
+  box-shadow: 0 40px 90px -50px rgba(0, 0, 0, 0.9);
+}
+
+/* Version scrubber. */
+.lg-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 24px;
+  background: transparent;
+  cursor: ew-resize;
+}
+
+.lg-range::-webkit-slider-runnable-track {
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    var(--color-ember) var(--fill, 50%),
+    var(--color-hair-strong) var(--fill, 50%)
+  );
+}
+
+.lg-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  background: var(--color-ember);
+  border: 0;
+  box-shadow: 0 0 0 4px rgba(255, 107, 69, 0.14);
+}
+
+.lg-range::-moz-range-track {
+  height: 2px;
+  background: var(--color-hair-strong);
+}
+
+.lg-range::-moz-range-progress {
+  height: 2px;
+  background: var(--color-ember);
+}
+
+.lg-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 0;
+  background: var(--color-ember);
+  box-shadow: 0 0 0 4px rgba(255, 107, 69, 0.14);
+}
+
+/* FAQ rows: native details, no JavaScript. */
+.faq-item summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-item summary::marker {
+  content: "";
+}
+
+.faq-plus {
+  transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.faq-item[open] .faq-plus {
+  transform: rotate(45deg);
+  color: var(--color-ember);
+}
+
+.faq-item[open] summary {
+  color: var(--color-bright);
+}
+
+/* Language chips. */
+.lang-chip {
+  border: 1px solid var(--color-hair);
+  padding: 7px 10px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-mute);
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background 160ms ease;
+}
+
+.lang-chip:hover {
+  border-color: var(--color-ember);
+  color: var(--color-bright);
+  background: rgba(255, 107, 69, 0.06);
 }
 
 /* Printable policy pages: drop the chrome, put ink on paper. */

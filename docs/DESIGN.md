@@ -72,6 +72,29 @@ Almost none. 150ms transform on the mobile drawer, otherwise instant. No page tr
 - Focus is always visible: 1px accent outline with a negative offset.
 - Contrast: body text `#e9e7e1` on `#0a0c0b` exceeds 15:1; `ink-dim` around 7:1; `ink-faint` is used only for metadata at 9 to 10px and never for content.
 
-## What is deliberately absent
+## Landing page
 
-Light theme, rounded corners, shadows, gradients, icons beyond the three drawn type marks, illustrations, avatars, onboarding tours, hover tooltips on everything.
+The marketing page at `/home` is the same ledger, lit from below. It is the one
+surface allowed more light than the app: a deeper ground (`void`), paper-warm
+ink, and a hotter ember accent that can carry glow. The app keeps the tokens and
+rules above.
+
+- Ground `#06070a`, shell `#0a0c11`, hairline `#1c2028`, ink `#f3f0e9`, ember
+  `#ff6b45`. Tokens live in the same `@theme` block, prefixed by role rather
+  than by page.
+- Still no radii. Depth comes from layered light: a fixed ember bloom behind the
+  hero, an edge-lit window with a soft spill shadow, and a film-grain overlay.
+  A ledger margin at the content edges replaces a decorative background grid.
+- Display type is Geist at 6rem with `-0.04em` tracking. The headline carries
+  the page; there is no eyebrow above it.
+- The hero artifact is a real product window: file tree, syntax-coloured editor,
+  and the version rail, inside two receding outline frames.
+- One authored entrance (staggered hero rise) and one ambient loop (the language
+  marquee). Sections reveal on scroll where scroll-driven animations exist.
+- The three feature sections are alternating editorial rows with working
+  artifacts, not cards. FAQ uses native `details`; the version scrubber and
+  depth demo remain the only client state.
+
+## What is deliberately absent from the app
+
+Light theme, rounded corners, shadows, gradients, icons beyond the three drawn type marks, illustrations, avatars, onboarding tours, hover tooltips on everything. The landing page is the deliberate exception for light, shadow, and gradient.
