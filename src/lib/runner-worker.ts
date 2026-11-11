@@ -72,9 +72,16 @@ function lockDown() {
     throw new Error("network and storage are disabled in the runner");
   };
   try { self.fetch = block; } catch (e) {}
+  try { self.XMLHttpRequest = block; } catch (e) {}
   try { self.WebSocket = block; } catch (e) {}
   try { self.EventSource = block; } catch (e) {}
   try { self.importScripts = block; } catch (e) {}
+  try { self.Worker = block; } catch (e) {}
+  try { self.SharedWorker = block; } catch (e) {}
+  try { self.BroadcastChannel = block; } catch (e) {}
+  try { self.WebTransport = block; } catch (e) {}
+  try { self.RTCPeerConnection = block; } catch (e) {}
+  try { self.navigator.sendBeacon = block; } catch (e) {}
   try { self.indexedDB = undefined; } catch (e) {}
   try { self.caches = undefined; } catch (e) {}
 }

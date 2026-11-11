@@ -11,7 +11,24 @@ import { createClient } from "@supabase/supabase-js";
 
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 20;
+const MAX_GLOBAL_PER_WINDOW = 200;
+
 const seen = new Map<string, number[]>();
+
+// A process-wide ceiling keeps a rotating forwarding header from turning an
+// unauthenticated intake into unbounded service-role writes.
+let globalWindowStart = 0;
+let globalCount = 0;
+
+function globallyLimited(): boolean {
+  const now = Date.now();
+  if (now - globalWindowStart >= WINDOW_MS) {
+    globalWindowStart = now;
+    globalCount = 0;
+  }
+  globalCount += 1;
+  return globalCount > MAX_GLOBAL_PER_WINDOW;
+}
 
 function rateLimited(key: string): boolean {
   if (seen.size > 2000) seen.clear();
@@ -28,12 +45,15 @@ function trim(value: unknown, max: number): string | null {
 }
 
 export async function POST(request: Request) {
+  // x-real-ip is set by the platform. If only x-forwarded-for is present, use
+  // its last hop, not the first value a client can prepend.
+  const forwarded = request.headers.get("x-forwarded-for");
   const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     request.headers.get("x-real-ip") ??
+    forwarded?.split(",").pop()?.trim() ??
     "unknown";
 
-  if (rateLimited(ip)) return new Response(null, { status: 204 });
+  if (globallyLimited() || rateLimited(ip)) return new Response(null, { status: 204 });
 
   let body: Record<string, unknown>;
   try {

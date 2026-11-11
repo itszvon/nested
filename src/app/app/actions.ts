@@ -70,6 +70,9 @@ function explain(message: string): string {
   if (/parent_trashed/.test(message)) {
     return "The destination is in the trash.";
   }
+  if (/profiles_settings_size|profiles_display_name_length|violates check constraint/i.test(message)) {
+    return "That value is outside the allowed size.";
+  }
   if (/folder_cycle/.test(message)) {
     return "A folder can't move inside itself.";
   }

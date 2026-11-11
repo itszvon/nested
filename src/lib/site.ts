@@ -15,8 +15,15 @@ export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:30
  * correct without needing an environment variable set on the host.
  */
 export function requestOrigin(headers: Headers): string {
-  const origin = headers.get("origin");
-  if (origin) return origin;
+  // Prefer the configured public origin. Request headers are only a local-dev
+  // fallback; letting an Origin header choose the OAuth redirect target is a
+  // trust decision we do not need.
+  const configured =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : null);
+  if (configured) return configured.replace(/\/+$/, "");
 
   const host = headers.get("x-forwarded-host") ?? headers.get("host");
   if (!host) return SITE_URL;

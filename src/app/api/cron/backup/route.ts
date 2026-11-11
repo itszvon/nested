@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { createClient } from "@supabase/supabase-js";
 
@@ -31,7 +31,14 @@ type Row = Record<string, unknown>;
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  const provided = request.headers.get("authorization") ?? "";
+  const expected = secret ? `Bearer ${secret}` : "";
+  const authorized =
+    Boolean(secret) &&
+    provided.length === expected.length &&
+    timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+
+  if (!authorized) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -53,6 +60,7 @@ export async function GET(request: Request) {
       const { data, error } = await supabase
         .from(table)
         .select("*")
+        .order("id")
         .range(from, from + PAGE - 1);
 
       if (error) throw new Error(`${table}: ${error.message}`);

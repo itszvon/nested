@@ -13,7 +13,9 @@ const ILLEGAL = /[/\\:*?"<>|]/g;
 
 function safeName(name: string): string {
   const cleaned = name.replace(ILLEGAL, "-").trim().slice(0, 120);
-  return cleaned.length > 0 ? cleaned : "untitled";
+  // Dot segments are valid database names but not valid archive paths.
+  if (cleaned.length === 0 || /^\.+$/.test(cleaned)) return "untitled";
+  return cleaned;
 }
 
 function uniquePath(used: Set<string>, path: string): string {

@@ -44,11 +44,12 @@ function jsDocument(code: string, nonce: string) {
   });
   window.onerror = function (message) { send("error", message); };
 
-  ["fetch", "XMLHttpRequest", "WebSocket", "EventSource", "importScripts", "Worker"].forEach(function (name) {
+  ["fetch", "XMLHttpRequest", "WebSocket", "EventSource", "importScripts", "Worker", "SharedWorker", "BroadcastChannel", "WebTransport", "RTCPeerConnection"].forEach(function (name) {
     try {
       window[name] = function () { throw new Error("network and workers are disabled in the runner"); };
     } catch (e) {}
   });
+  try { navigator.sendBeacon = function () { throw new Error("network is disabled in the runner"); }; } catch (e) {}
 
   try {
     var run = new Function(${ESC(code)});
@@ -69,6 +70,12 @@ function pythonDocument(code: string, nonce: string) {
   var nonce = ${JSON.stringify(nonce)};
   function send(type, text) {
     try { parent.postMessage({ nonce: nonce, type: type, text: String(text) }, "*"); } catch (e) {}
+  }
+  function lockDown() {
+    ["fetch", "XMLHttpRequest", "WebSocket", "EventSource", "importScripts", "Worker", "SharedWorker", "BroadcastChannel", "WebTransport", "RTCPeerConnection"].forEach(function (name) {
+      try { window[name] = function () { throw new Error("network and workers are disabled in the runner"); }; } catch (e) {}
+    });
+    try { navigator.sendBeacon = function () { throw new Error("network is disabled in the runner"); }; } catch (e) {}
   }
   try {
     send("status", "loading python runtime (first run downloads about 10 MB)…");
@@ -93,6 +100,7 @@ function pythonDocument(code: string, nonce: string) {
       "builtins.input = _nested_input",
     ].join("\\n"));
 
+    lockDown();
     await pyodide.runPythonAsync(${ESC(code)});
     send("done");
   } catch (error) {
@@ -103,7 +111,10 @@ function pythonDocument(code: string, nonce: string) {
 }
 
 function cssDocument(code: string) {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${code}</style></head>
+  // Keep a user style block from closing its own <style> element and switching
+  // the preview into script execution.
+  const safeCss = code.replace(/<\/style/gi, "<\\/style");
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${safeCss}</style></head>
 <body style="padding:16px">
   <h1>Heading one</h1>
   <h2>Heading two</h2>
@@ -593,7 +604,7 @@ export function RunnerPanel({
         <iframe
           key={`${runId}-${stopped ? "stopped" : "live"}`}
           title="Preview"
-          sandbox="allow-scripts allow-modals"
+          sandbox={language === "css" ? "" : "allow-scripts allow-modals"}
           referrerPolicy="no-referrer"
           srcDoc={document_ ?? ""}
           className="h-full w-full flex-1 bg-white"
