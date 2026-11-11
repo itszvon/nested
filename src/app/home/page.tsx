@@ -256,7 +256,7 @@ function TreeRow({
 function CodeRow({ n, children }: { n: number; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[1.7rem_1fr] gap-2 pl-2">
-      <span className="select-none text-right font-mono text-[9px] leading-[1.9] text-ghost/50">
+      <span className="select-none text-right font-mono text-[9px] leading-[1.9] text-ghost">
         {n}
       </span>
       <code className="block overflow-hidden whitespace-pre font-mono text-[9.5px] leading-[1.9] text-mute">
@@ -486,6 +486,12 @@ function EditorArtifact() {
 export default function LandingPage() {
   return (
     <div id="top" className="landing min-h-dvh">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:border focus:border-ember focus:bg-shell focus:px-4 focus:py-2 focus:font-mono focus:text-[10px] focus:uppercase focus:tracking-[0.14em] focus:text-bright"
+      >
+        Skip to content
+      </a>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -552,7 +558,7 @@ export default function LandingPage() {
         </nav>
       </header>
 
-      <main>
+      <main id="main">
         <section className="relative overflow-hidden">
           <div className="hero-bloom" aria-hidden="true" />
           <div className="mx-auto max-w-[1240px] px-6 pb-20 pt-16 md:px-10 lg:pb-28 lg:pt-24">
@@ -877,7 +883,7 @@ export default function LandingPage() {
             </nav>
           </div>
 
-          <div className="mt-10 flex flex-col gap-2 border-t border-hair pt-6 font-mono text-[8.5px] uppercase tracking-[0.14em] text-ghost/80 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-10 flex flex-col gap-2 border-t border-hair pt-6 font-mono text-[9px] uppercase tracking-[0.14em] text-ghost sm:flex-row sm:items-center sm:justify-between">
             <span>© 2026 Nested</span>
             <span>Dark by default</span>
           </div>

@@ -207,7 +207,7 @@ html:has(.landing) {
 .tok-f { color: #ffd9a8; }
 .tok-s { color: var(--color-sage); }
 .tok-n { color: #c3b6ff; }
-.tok-c { color: #6b7079; }
+.tok-c { color: #8b9099; }
 
 /* One authored entrance for the hero, staggered by inline delay. */
 @keyframes lg-rise {

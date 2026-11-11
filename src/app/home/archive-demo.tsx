@@ -142,7 +142,7 @@ export function VersionScrubber() {
               />
               <span
                 className={`font-mono text-[8px] tracking-[0.08em] transition-colors ${
-                  tick === index ? "text-bright" : "text-ghost/70 group-hover:text-mute"
+                  tick === index ? "text-bright" : "text-ghost group-hover:text-mute"
                 }`}
               >
                 {entry.at.slice(0, 5)}
