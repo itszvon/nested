@@ -68,7 +68,11 @@ export function startServer({ entry, port, token, host, logDir }: StartOptions):
  * True once the server answers at all. A 503 from `/api/health` still proves
  * the process is listening, which is what the window needs before loading.
  */
-export async function waitForServer(origin: string, timeoutMs: number): Promise<boolean> {
+export async function waitForServer(
+  origin: string,
+  timeoutMs: number,
+  token?: string,
+): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
@@ -78,8 +82,12 @@ export async function waitForServer(origin: string, timeoutMs: number): Promise<
       const response = await fetch(`${origin}/api/health`, {
         signal: controller.signal,
         cache: "no-store",
+        headers: token ? { "x-nested-desktop": token } : undefined,
       });
       clearTimeout(timer);
+      // A 403 with our own token means another process owns this port, not our
+      // server. Attaching to it would break every page, so treat it as down.
+      if (response.status === 403) return false;
       if (response.status < 500 || response.status === 503) return true;
     } catch {
       // Not listening yet.

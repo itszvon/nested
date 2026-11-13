@@ -22,10 +22,12 @@ test("a spawned server answers and shuts down", { skip: !existsSync(entry) }, as
   const child = startServer({ entry, port, token: "test-token" });
 
   try {
-    assert.equal(await waitForServer(origin, 30_000), true);
+    // The guard rejects headerless requests, so the readiness check must
+    // identify itself with the same token the server was started with.
+    assert.equal(await waitForServer(origin, 30_000, "test-token"), true);
   } finally {
     await stopServer(child);
   }
 
-  assert.equal(await waitForServer(origin, 600), false);
+  assert.equal(await waitForServer(origin, 600, "test-token"), false);
 });

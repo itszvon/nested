@@ -92,7 +92,7 @@ async function launchServer(): Promise<boolean> {
     failToStart(`The local server stopped unexpectedly (exit code ${code ?? "unknown"}).`);
   });
 
-  return waitForServer(ORIGIN, START_TIMEOUT_MS);
+  return waitForServer(ORIGIN, START_TIMEOUT_MS, token());
 }
 
 function failToStart(detail: string) {
@@ -206,8 +206,24 @@ if (!gotLock) {
       const probe = ready ? await fetch(`${ORIGIN}/app`, { redirect: "manual" }) : null;
       const guarded = probe?.status === 403;
 
+      // The other half: the same request *with* the header must be served.
+      // Without this check the guard could lock the app out entirely (it did).
+      const authed = ready
+        ? await fetch(`${ORIGIN}/app`, {
+            redirect: "manual",
+            headers: { "x-nested-desktop": token() },
+          })
+        : null;
+      const served = authed !== null && authed.status !== 403;
+
       process.stdout.write(
-        JSON.stringify({ server: ready, guarded, tokenLength: token().length }) + "\n",
+        JSON.stringify({
+          server: ready,
+          guarded,
+          served,
+          authedStatus: authed?.status ?? null,
+          tokenLength: token().length,
+        }) + "\n",
       );
       quitting = true;
       if (server) await stopServer(server);
@@ -237,6 +253,16 @@ if (!gotLock) {
         if (result?.ok) mainWindow?.webContents.send("nested:file-opened", result.file);
       });
     });
+    // The server refuses loopback requests without this header, and only the
+    // main process knows the token. Without this hook every page returns 403.
+    const desktopToken = token();
+    mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
+      if (details.url.startsWith(ORIGIN)) {
+        details.requestHeaders["x-nested-desktop"] = desktopToken;
+      }
+      callback({ requestHeaders: details.requestHeaders });
+    });
+
     void mainWindow.loadURL(`${ORIGIN}/login`);
 
     // A link that launched the app arrives on the first instance's argv.

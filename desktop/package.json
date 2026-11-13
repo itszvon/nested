@@ -1,7 +1,7 @@
 {
   "name": "nested-desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Nested for Windows",
   "main": "dist/main.js",
   "scripts": {
