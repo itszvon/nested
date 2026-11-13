@@ -5,6 +5,7 @@ import { validateExport, validateImport } from "./files";
 import { isOAuthNavigation, openExternalAuth } from "./auth";
 import { buildMenu } from "./menu";
 import { HOST, IS_SMOKE, ORIGIN, PORT, SMOKE, preloadPath, standaloneEntry, token } from "./env";
+import { findDeepLink, parseDeepLink } from "./protocol";
 import { startServer, stopServer, waitForServer } from "./server";
 
 /**
@@ -103,11 +104,26 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
-  app.on("second-instance", () => {
+  function routeDeepLink(raw: string | null): void {
+    const link = raw ? parseDeepLink(raw) : null;
+    if (!link || !mainWindow) return;
+    void mainWindow.loadURL(`${ORIGIN}/app?f=${encodeURIComponent(link.id)}`);
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+
+  app.on("second-instance", (_event, commandLine) => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
     }
+    routeDeepLink(findDeepLink(commandLine));
+  });
+
+  // macOS delivers links through this event instead of argv.
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    routeDeepLink(url);
   });
 
   ipcMain.handle("nested:info", () => ({
@@ -206,6 +222,11 @@ if (!gotLock) {
     mainWindow = createWindow();
     buildMenu(mainWindow);
     void mainWindow.loadURL(`${ORIGIN}/login`);
+
+    // A link that launched the app arrives on the first instance's argv.
+    if (app.isPackaged) app.setAsDefaultProtocolClient("nested");
+    const startupLink = findDeepLink(process.argv);
+    if (startupLink) routeDeepLink(startupLink);
   });
 
   app.on("before-quit", () => {
