@@ -1,5 +1,6 @@
 import type { ChildProcess } from "node:child_process";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { isOAuthNavigation, openExternalAuth } from "./auth";
 import { HOST, IS_SMOKE, ORIGIN, PORT, SMOKE, preloadPath, standaloneEntry, token } from "./env";
 import { startServer, stopServer, waitForServer } from "./server";
 
@@ -36,10 +37,22 @@ function createWindow(): BrowserWindow {
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
+    if (isOAuthNavigation(url)) {
+      openExternalAuth(url);
+      return { action: "deny" };
+    }
     // Nothing in the product opens a second window; links leave to the browser.
     if (url.startsWith(ORIGIN)) return { action: "allow" };
     void shell.openExternal(url);
     return { action: "deny" };
+  });
+
+  // A full navigation to Google or Supabase's authorize endpoint is sign-in,
+  // and Google rejects embedded webviews outright.
+  window.webContents.on("will-navigate", (event, url) => {
+    if (!isOAuthNavigation(url)) return;
+    event.preventDefault();
+    openExternalAuth(url);
   });
 
   return window;

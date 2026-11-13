@@ -32,6 +32,7 @@ client → Authorized redirect URIs**, add both:
 ```
 https://nestedforyou.vercel.app/auth/google/callback
 http://localhost:3000/auth/google/callback
+http://127.0.0.1:43110/auth/google/callback
 ```
 
 Keep the existing `https://purcbbalpuovesdndlik.supabase.co/auth/v1/callback`
@@ -53,6 +54,20 @@ GOOGLE_CLIENT_SECRET=...
 They are the same client ID and secret already configured in the Supabase
 Google provider. Supabase validates the ID token against that provider, so the
 two must stay identical.
+
+## Desktop build
+
+The Electron app serves the same Next.js app from `http://127.0.0.1:43110`, so
+the same flow applies with a loopback redirect. Two extra entries are needed:
+
+- Supabase Auth -> URL Configuration -> Redirect URLs: `http://127.0.0.1:43110/**`
+- Google Cloud Console: `http://127.0.0.1:43110/auth/google/callback`
+
+`requestOrigin()` prefers `NEXT_PUBLIC_SITE_URL`, which `desktop/src/server.ts`
+sets to the loopback origin, so no application code branches on desktop. The
+port is fixed because a redirect URI cannot contain a wildcard port. Any
+navigation to Google or to a Supabase `/auth/v1/authorize` URL is handed to the
+system browser (`desktop/src/oauth-urls.ts`); Google rejects embedded views.
 
 ## If you move to a custom domain
 
