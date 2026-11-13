@@ -650,12 +650,9 @@ export async function requestUsernameChange(username: string): Promise<ActionRes
     return { ok: false, error: "That is already your username." };
   }
 
-  const { data: taken } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("username", clean)
-    .maybeSingle();
-  if (taken) return { ok: false, error: "That username is taken." };
+  // No existence check here on purpose: answering "taken" would let any
+  // signed-in user enumerate usernames. Uniqueness is enforced by the index at
+  // confirm time, after the mailbox code proves control of the address.
 
   // One pending change at a time, so a code can only ever apply the request
   // the user just made. Clearing first keeps the newest row the only one.
@@ -744,10 +741,11 @@ export async function confirmUsernameChange(code: string): Promise<ActionResult>
     return { ok: false, error: "That change is malformed. Start again." };
   }
 
-  const { error: updateError } = await supabase
-    .from("profiles")
-    .update({ username })
-    .eq("id", user.id);
+  // Definer RPC: the table grant does not allow writing `username`, and the
+  // function only ever touches the caller's row.
+  const { error: updateError } = await supabase.rpc("set_my_username", {
+    p_username: username,
+  });
 
   if (updateError) {
     if (/duplicate key|unique/i.test(updateError.message)) {
@@ -845,7 +843,7 @@ export async function confirmEmailChange(code: string): Promise<ActionResult> {
 
   // The address is proven now, so the display copy follows it immediately
   // instead of waiting for the session token to be refreshed.
-  await supabase.from("profiles").update({ email }).eq("id", user.id);
+  await supabase.rpc("set_my_email", { p_email: email });
   await supabase.from("profile_change_requests").delete().eq("id", request.id);
 
   revalidatePath("/app");

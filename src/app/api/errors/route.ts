@@ -82,22 +82,9 @@ export async function POST(request: Request) {
       digest: trim(body.digest, 100),
     });
 
-    // Keep the table small without a separate cleanup job.
-    const { data } = await supabase
-      .from("error_events")
-      .select("id")
-      .order("created_at", { ascending: false })
-      .range(500, 1000);
-
-    if (data && data.length > 0) {
-      await supabase
-        .from("error_events")
-        .delete()
-        .in(
-          "id",
-          (data as Array<{ id: string }>).map((row) => row.id),
-        );
-    }
+    // Retention is a scheduled job (see 20261113120100_purge_error_events.sql).
+    // Trimming here would make this unauthenticated endpoint pay for an
+    // ordered scan and a delete on every accepted request.
   } catch {
     // Never surface intake failures to the page that is already failing.
   }

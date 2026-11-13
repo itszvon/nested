@@ -2,7 +2,8 @@
  * One source of truth for what each language does inside Nested.
  *
  * The picker, the file header and the runner all read this, so a language
- * cannot claim to run in one place and refuse in another.
+ * cannot claim to run in one place and refuse in another. The verified
+ * capability matrix, including what fails and why, is docs/LANGUAGES.md.
  */
 
 export type LanguageStatus = "runs" | "remote" | "preview" | "checks" | "external";

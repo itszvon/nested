@@ -260,8 +260,10 @@ export function FilePane({
     );
   }, [dirty, file.id]);
 
-  // Look for a draft left behind by a crash. Only offered when it differs from
-  // what the server has, so a successful save never nags.
+  // Look for a draft left behind by a crash. Only used when it differs from
+  // what the server has, so a successful save never nags. The draft is put
+  // back automatically: reopening after a browser close should feel like the
+  // work never went away. The banner below offers to undo that.
   useEffect(() => {
     if (getBuffer(file.id)) return;
 
@@ -273,11 +275,24 @@ export function FilePane({
         return;
       }
       setDraft(found);
+      setText(found.text);
     });
     return () => {
       cancelled = true;
     };
   }, [file.id, file.content, userId]);
+
+  // The editor mounts before IndexedDB answers, so the recovered text is
+  // pushed into it once the view exists. If the editor mounted with the draft
+  // already as its initial text, this is a no-op.
+  useEffect(() => {
+    if (!draft || !viewReady) return;
+    const view = viewRef.current;
+    if (!view || view.state.doc.toString() === draft.text) return;
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: draft.text },
+    });
+  }, [draft, viewReady]);
 
   const scheduleDraft = useCallback(
     (next: string) => {
@@ -380,6 +395,7 @@ export function FilePane({
     setRevision(result.revision);
     setSavedAt(new Date().toISOString());
     deleteBuffer(file.id);
+    setDraft(null);
     if (draftTimer.current) clearTimeout(draftTimer.current);
     await deleteDraft(userId, file.id);
     router.refresh();
@@ -470,6 +486,7 @@ export function FilePane({
       // save_project writes exactly one revision per included file.
       setRevision((current) => current + 1);
       setSavedAt(new Date().toISOString());
+      setDraft(null);
       await deleteDraft(userId, file.id);
     }
 
@@ -550,21 +567,22 @@ export function FilePane({
     });
   }
 
-  function restoreDraft() {
-    if (!draft || !viewRef.current) {
-      setDraft(null);
-      return;
-    }
+  /** Puts the saved version back and forgets the recovered draft. */
+  async function undoDraft() {
     const view = viewRef.current;
-    view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: draft.text },
-    });
-    setDraft(null);
-  }
-
-  async function discardDraft() {
+    if (view) {
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: savedText },
+      });
+    }
+    setText(savedText);
     setDraft(null);
     await deleteDraft(userId, file.id);
+  }
+
+  /** Hides the notice only; the recovered text stays in the editor. */
+  function dismissDraft() {
+    setDraft(null);
   }
 
   const size = new TextEncoder().encode(text).length;
@@ -816,22 +834,25 @@ export function FilePane({
       {draft ? (
         <div className="flex items-center gap-3 border-b border-rule bg-[#111614] px-4 py-2 text-[11px] text-ink-dim">
           <span className="flex-1">
-            Unsaved changes from {timeOf(new Date(draft.savedAt).toISOString())} were recovered
+            Unsaved changes from {timeOf(new Date(draft.savedAt).toISOString())} were restored
             from this browser.
           </span>
           <button
             type="button"
-            onClick={restoreDraft}
+            onClick={() => void undoDraft()}
+            title="Put the last saved version back"
             className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink hover:text-[var(--color-accent-text)]"
           >
-            restore
+            undo
           </button>
           <button
             type="button"
-            onClick={() => void discardDraft()}
-            className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint hover:text-ink"
+            onClick={dismissDraft}
+            aria-label="Dismiss restored changes notice"
+            title="Close this notice"
+            className="h-5 w-5 border border-rule font-mono text-[12px] leading-none text-ink-faint hover:border-rule-strong hover:text-ink"
           >
-            discard
+            ×
           </button>
         </div>
       ) : null}
