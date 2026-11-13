@@ -1,7 +1,7 @@
 import type { ChildProcess } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { validateExport, validateImport } from "./files";
+import { validateExport, validateImport, type ImportResult } from "./files";
 import { isOAuthNavigation, openExternalAuth } from "./auth";
 import { buildMenu } from "./menu";
 import { HOST, IS_SMOKE, ORIGIN, PORT, SMOKE, preloadPath, standaloneEntry, token } from "./env";
@@ -143,8 +143,8 @@ if (!gotLock) {
   }));
 
   // The renderer never sees a path: it asks for a file, the main process
-  // resolves, validates and returns text.
-  ipcMain.handle("file:open", async () => {
+  // resolves, validates and returns text. The menu uses the same function.
+  async function pickFile(): Promise<ImportResult | null> {
     if (!mainWindow) return { ok: false, error: "No window." };
 
     const picked = await dialog.showOpenDialog(mainWindow, {
@@ -169,7 +169,9 @@ if (!gotLock) {
     } catch {
       return { ok: false, error: "That file could not be read." };
     }
-  });
+  }
+
+  ipcMain.handle("file:open", pickFile);
 
   ipcMain.handle("file:save", async (_event, payload: unknown) => {
     const input = payload as { name?: unknown; content?: unknown } | null;
@@ -230,7 +232,11 @@ if (!gotLock) {
     }
 
     mainWindow = createWindow();
-    buildMenu(mainWindow);
+    buildMenu(mainWindow, () => {
+      void pickFile().then((result) => {
+        if (result?.ok) mainWindow?.webContents.send("nested:file-opened", result.file);
+      });
+    });
     void mainWindow.loadURL(`${ORIGIN}/login`);
 
     // A link that launched the app arrives on the first instance's argv.

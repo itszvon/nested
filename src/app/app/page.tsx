@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceRows } from "@/lib/workspace";
 import { signOut } from "./actions";
 import { CommandPalette } from "./command-palette";
+import { DesktopBridge } from "./desktop-bridge";
 import { FileTabs } from "./tabs";
 import { FileDiff } from "./diff-view";
 import { FilePane } from "./file-pane";
@@ -85,6 +86,7 @@ export default async function AppPage({
 
   return (
     <div className="flex h-dvh flex-col">
+      <DesktopBridge />
       <header className="flex h-10 shrink-0 items-center gap-3 border-b border-rule px-3">
         <Link
           href="/home"

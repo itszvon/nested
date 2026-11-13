@@ -20,6 +20,14 @@ contextBridge.exposeInMainWorld("nested", {
     ipcRenderer.invoke("file:save", { name, content }),
   /** Tells the main process whether an update may restart the app. */
   setDirty: (value: boolean): Promise<{ ok: true }> => ipcRenderer.invoke("nested:dirty", value),
+  /** A file chosen from the File menu (not the in-page picker). */
+  onFileOpened: (callback: (file: { name: string; content: string }) => void): (() => void) => {
+    const listener = (_event: unknown, file: { name: string; content: string }) => callback(file);
+    ipcRenderer.on("nested:file-opened", listener);
+    return () => {
+      ipcRenderer.off("nested:file-opened", listener);
+    };
+  },
   onDeepLink: (callback: (url: string) => void): (() => void) => {
     const listener = (_event: unknown, url: string) => callback(url);
     ipcRenderer.on("nested:deep-link", listener);
