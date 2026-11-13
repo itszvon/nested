@@ -6,6 +6,8 @@ import { isOAuthNavigation, openExternalAuth } from "./auth";
 import { buildMenu } from "./menu";
 import { HOST, IS_SMOKE, ORIGIN, PORT, SMOKE, preloadPath, standaloneEntry, token } from "./env";
 import { findDeepLink, parseDeepLink } from "./protocol";
+import { createDirtyGuard } from "./update-guard";
+import { initUpdater } from "./updater";
 import { startServer, stopServer, waitForServer } from "./server";
 
 /**
@@ -16,6 +18,8 @@ import { startServer, stopServer, waitForServer } from "./server";
  */
 
 const START_TIMEOUT_MS = 20_000;
+
+const dirtyGuard = createDirtyGuard();
 
 let mainWindow: BrowserWindow | null = null;
 let server: ChildProcess | null = null;
@@ -126,6 +130,12 @@ if (!gotLock) {
     routeDeepLink(url);
   });
 
+  // The renderer reports unsaved state; only it knows whether the buffer differs.
+  ipcMain.handle("nested:dirty", (_event, value: unknown) => {
+    dirtyGuard.setDirty(value === true);
+    return { ok: true };
+  });
+
   ipcMain.handle("nested:info", () => ({
     platform: process.platform,
     version: app.getVersion(),
@@ -227,6 +237,8 @@ if (!gotLock) {
     if (app.isPackaged) app.setAsDefaultProtocolClient("nested");
     const startupLink = findDeepLink(process.argv);
     if (startupLink) routeDeepLink(startupLink);
+
+    if (app.isPackaged) initUpdater(mainWindow, dirtyGuard);
   });
 
   app.on("before-quit", () => {

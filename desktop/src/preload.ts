@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld("nested", {
     content: string,
   ): Promise<{ ok: true; path: string } | { ok: false; error: string }> =>
     ipcRenderer.invoke("file:save", { name, content }),
+  /** Tells the main process whether an update may restart the app. */
+  setDirty: (value: boolean): Promise<{ ok: true }> => ipcRenderer.invoke("nested:dirty", value),
   onDeepLink: (callback: (url: string) => void): (() => void) => {
     const listener = (_event: unknown, url: string) => callback(url);
     ipcRenderer.on("nested:deep-link", listener);
