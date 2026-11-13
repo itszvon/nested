@@ -9,6 +9,8 @@ import { app } from "electron";
  */
 export const PORT = Number(process.env.NESTED_DESKTOP_PORT ?? 43110);
 export const ORIGIN = `http://127.0.0.1:${PORT}`;
+/** Host header the local server must see. Passed to it as NESTED_DESKTOP_HOST. */
+export const HOST = `127.0.0.1:${PORT}`;
 
 let cachedToken: string | null = null;
 

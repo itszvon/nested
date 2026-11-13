@@ -15,6 +15,8 @@ export type StartOptions = {
   entry: string;
   port: number;
   token: string;
+  /** Host header the server should accept, e.g. "127.0.0.1:43110". */
+  host?: string;
   /** Absent in tests, where stdout is not worth keeping. */
   logDir?: string;
 };
@@ -30,7 +32,7 @@ function openLog(logDir: string | undefined) {
   return createWriteStream(file, { flags: "a" });
 }
 
-export function startServer({ entry, port, token, logDir }: StartOptions): ChildProcess {
+export function startServer({ entry, port, token, host, logDir }: StartOptions): ChildProcess {
   const log = openLog(logDir);
 
   const child = spawn(process.execPath, [entry], {
@@ -42,6 +44,7 @@ export function startServer({ entry, port, token, logDir }: StartOptions): Child
       PORT: String(port),
       HOSTNAME: "127.0.0.1",
       NEXT_PUBLIC_SITE_URL: `http://127.0.0.1:${port}`,
+      NESTED_DESKTOP_HOST: host ?? `127.0.0.1:${port}`,
       NESTED_DESKTOP_TOKEN: token,
       NODE_ENV: "production",
     },

@@ -31,7 +31,8 @@ if (result.status !== 0) {
 
 const line = (result.stdout || "").trim().split("\n").pop() ?? "";
 const parsed = JSON.parse(line);
-const ok = mode === "full" ? parsed.server === true : parsed.windows === 1;
+const ok =
+  mode === "full" ? parsed.server === true && parsed.guarded === true : parsed.windows === 1;
 
 if (!ok || parsed.tokenLength !== 64) {
   process.stderr.write(`unexpected shell report: ${line}\n`);

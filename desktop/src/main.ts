@@ -1,6 +1,6 @@
 import type { ChildProcess } from "node:child_process";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { IS_SMOKE, ORIGIN, PORT, SMOKE, preloadPath, standaloneEntry, token } from "./env";
+import { HOST, IS_SMOKE, ORIGIN, PORT, SMOKE, preloadPath, standaloneEntry, token } from "./env";
 import { startServer, stopServer, waitForServer } from "./server";
 
 /**
@@ -49,6 +49,7 @@ async function launchServer(): Promise<boolean> {
   server = startServer({
     entry: standaloneEntry(),
     port: PORT,
+    host: HOST,
     token: token(),
     logDir: app.getPath("logs"),
   });
@@ -103,7 +104,15 @@ if (!gotLock) {
     if (SMOKE === "full") {
       // Proves the packaged boot path: server first, then teardown.
       const ready = await launchServer();
-      process.stdout.write(JSON.stringify({ server: ready, tokenLength: token().length }) + "\n");
+
+      // The whole point of the guard: a request without the handshake header
+      // is refused even though the server is listening.
+      const probe = ready ? await fetch(`${ORIGIN}/app`, { redirect: "manual" }) : null;
+      const guarded = probe?.status === 403;
+
+      process.stdout.write(
+        JSON.stringify({ server: ready, guarded, tokenLength: token().length }) + "\n",
+      );
       quitting = true;
       if (server) await stopServer(server);
       app.exit(ready ? 0 : 1);
