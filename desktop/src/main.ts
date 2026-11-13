@@ -1,5 +1,7 @@
 import type { ChildProcess } from "node:child_process";
+import { readFile, writeFile } from "node:fs/promises";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { validateExport, validateImport } from "./files";
 import { isOAuthNavigation, openExternalAuth } from "./auth";
 import { buildMenu } from "./menu";
 import { HOST, IS_SMOKE, ORIGIN, PORT, SMOKE, preloadPath, standaloneEntry, token } from "./env";
@@ -113,6 +115,58 @@ if (!gotLock) {
     version: app.getVersion(),
     desktop: true,
   }));
+
+  // The renderer never sees a path: it asks for a file, the main process
+  // resolves, validates and returns text.
+  ipcMain.handle("file:open", async () => {
+    if (!mainWindow) return { ok: false, error: "No window." };
+
+    const picked = await dialog.showOpenDialog(mainWindow, {
+      title: "Open a file",
+      properties: ["openFile"],
+      filters: [
+        {
+          name: "Text and code",
+          extensions: [
+            "txt", "md", "py", "js", "jsx", "ts", "tsx", "json", "yaml", "yml",
+            "html", "css", "sql", "java", "c", "h", "cpp", "hpp", "go", "rs", "sh",
+          ],
+        },
+        { name: "All files", extensions: ["*"] },
+      ],
+    });
+
+    if (picked.canceled || !picked.filePaths[0]) return null;
+
+    try {
+      return validateImport(picked.filePaths[0], await readFile(picked.filePaths[0]));
+    } catch {
+      return { ok: false, error: "That file could not be read." };
+    }
+  });
+
+  ipcMain.handle("file:save", async (_event, payload: unknown) => {
+    const input = payload as { name?: unknown; content?: unknown } | null;
+    const checked = validateExport(
+      typeof input?.name === "string" ? input.name : "untitled.txt",
+      input?.content,
+    );
+    if (!checked.ok) return checked;
+    if (!mainWindow) return { ok: false, error: "No window." };
+
+    const target = await dialog.showSaveDialog(mainWindow, {
+      title: "Save file",
+      defaultPath: checked.name,
+    });
+    if (target.canceled || !target.filePath) return { ok: false, error: "Save cancelled." };
+
+    try {
+      await writeFile(target.filePath, checked.content, "utf8");
+      return { ok: true, path: target.filePath };
+    } catch {
+      return { ok: false, error: "That file could not be written." };
+    }
+  });
 
   app.whenReady().then(async () => {
     if (SMOKE === "full") {
