@@ -56,3 +56,30 @@ Total desktop tests: 29. Root tests: 38. Typecheck clean for both projects.
 - No app icon.
 - Playwright `_electron` suite still not installed; coverage is Node tests plus
   the `NESTED_SMOKE=full` boot path.
+
+
+## After Phase D
+
+- **SEC-004 fixed** in code and schema: `set_my_username` / `set_my_email` definer
+  RPCs (`20261113120000_identity_change_rpc.sql`); actions call them. The
+  migration still has to be pushed before the feature works in production.
+- **SEC-010 fixed** with it: the "username is taken" pre-check is gone, so a
+  signed-in user can no longer enumerate usernames.
+- **SEC-002 fixed**: `/api/errors` no longer scans and deletes on every request;
+  retention moved to `pg_cron` (`20261113120100_purge_error_events.sql`).
+- **SEC-005 fixed**: sitemap uses `SITE_URL`, lists `/terms` and `/privacy`.
+- **SEC-006 fixed**: security.txt `Canonical` is absolute.
+- **SEC-007 fixed**: in production the request origin comes from configuration,
+  never from `X-Forwarded-Host`.
+- **SEC-008 fixed**: `.env.example` documents `CRON_SECRET` and
+  `SUPABASE_SERVICE_ROLE_KEY`.
+- **Desktop IPC wired**: `DesktopBridge` forwards `nested:dirty` to the main
+  process and turns a File-menu pick into a new root file. `CmdOrCtrl+O` added.
+
+Ruling: an imported file lands at the project root with its name preserved
+(markdown unless the extension maps to a known language). Cost if wrong: users
+who expected it inside the open project move it one step.
+
+Known slip: commit `3c361b6` also captured two pre-existing worktree edits
+(`src/app/app/file-pane.tsx`, `src/lib/languages.ts`) that I did not author.
+Nothing was reverted; they are simply committed alongside the audit fixes.
