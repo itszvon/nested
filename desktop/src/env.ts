@@ -34,4 +34,6 @@ export function preloadPath(): string {
   return join(__dirname, "preload.js");
 }
 
-export const IS_SMOKE = process.env.NESTED_SMOKE === "1";
+/** "1" checks the shell alone; "full" also boots the local server. */
+export const SMOKE = process.env.NESTED_SMOKE ?? "";
+export const IS_SMOKE = SMOKE !== "";

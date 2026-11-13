@@ -1,5 +1,7 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
-import { IS_SMOKE, ORIGIN, preloadPath, token } from "./env";
+import type { ChildProcess } from "node:child_process";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { IS_SMOKE, ORIGIN, PORT, SMOKE, preloadPath, standaloneEntry, token } from "./env";
+import { startServer, stopServer, waitForServer } from "./server";
 
 /**
  * One window, one server, one instance.
@@ -8,7 +10,12 @@ import { IS_SMOKE, ORIGIN, preloadPath, token } from "./env";
  * a loopback origin. Everything privileged stays in this process.
  */
 
+const START_TIMEOUT_MS = 20_000;
+
 let mainWindow: BrowserWindow | null = null;
+let server: ChildProcess | null = null;
+let quitting = false;
+let restarts = 0;
 
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -38,6 +45,42 @@ function createWindow(): BrowserWindow {
   return window;
 }
 
+async function launchServer(): Promise<boolean> {
+  server = startServer({
+    entry: standaloneEntry(),
+    port: PORT,
+    token: token(),
+    logDir: app.getPath("logs"),
+  });
+
+  server.once("exit", (code) => {
+    server = null;
+    if (quitting || IS_SMOKE) return;
+
+    // A dead server behind a live window is worse than a restart: try once,
+    // then say so plainly instead of leaving a blank frame.
+    if (restarts < 1) {
+      restarts += 1;
+      void launchServer().then((ok) => {
+        if (!ok) failToStart("The local server stopped and could not be restarted.");
+      });
+      return;
+    }
+
+    failToStart(`The local server stopped unexpectedly (exit code ${code ?? "unknown"}).`);
+  });
+
+  return waitForServer(ORIGIN, START_TIMEOUT_MS);
+}
+
+function failToStart(detail: string) {
+  dialog.showErrorBox(
+    "Nested could not start",
+    `${detail}\n\nPort ${PORT} must be free, and the app needs to be able to run its local server.\n`,
+  );
+  app.exit(1);
+}
+
 const gotLock = app.requestSingleInstanceLock();
 
 if (!gotLock) {
@@ -56,17 +99,40 @@ if (!gotLock) {
     desktop: true,
   }));
 
-  app.whenReady().then(() => {
-    mainWindow = createWindow();
+  app.whenReady().then(async () => {
+    if (SMOKE === "full") {
+      // Proves the packaged boot path: server first, then teardown.
+      const ready = await launchServer();
+      process.stdout.write(JSON.stringify({ server: ready, tokenLength: token().length }) + "\n");
+      quitting = true;
+      if (server) await stopServer(server);
+      app.exit(ready ? 0 : 1);
+      return;
+    }
 
     if (IS_SMOKE) {
-      // The server is not part of this task; report the shell and exit.
-      process.stdout.write(JSON.stringify({ windows: BrowserWindow.getAllWindows().length, tokenLength: token().length }) + "\n");
+      // Shell-only check: no server, no window contents.
+      mainWindow = createWindow();
+      process.stdout.write(
+        JSON.stringify({ windows: BrowserWindow.getAllWindows().length, tokenLength: token().length }) + "\n",
+      );
       app.exit(0);
       return;
     }
 
+    const ready = await launchServer();
+    if (!ready) {
+      failToStart(`Port ${PORT} is already in use, or the server did not answer in ${START_TIMEOUT_MS / 1000}s.`);
+      return;
+    }
+
+    mainWindow = createWindow();
     void mainWindow.loadURL(`${ORIGIN}/login`);
+  });
+
+  app.on("before-quit", () => {
+    quitting = true;
+    if (server) void stopServer(server);
   });
 
   app.on("window-all-closed", () => {
