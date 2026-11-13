@@ -1,6 +1,7 @@
 import type { ChildProcess } from "node:child_process";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { isOAuthNavigation, openExternalAuth } from "./auth";
+import { buildMenu } from "./menu";
 import { HOST, IS_SMOKE, ORIGIN, PORT, SMOKE, preloadPath, standaloneEntry, token } from "./env";
 import { startServer, stopServer, waitForServer } from "./server";
 
@@ -149,6 +150,7 @@ if (!gotLock) {
     }
 
     mainWindow = createWindow();
+    buildMenu(mainWindow);
     void mainWindow.loadURL(`${ORIGIN}/login`);
   });
 
