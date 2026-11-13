@@ -1,0 +1,61 @@
+name: Desktop release
+
+on:
+  push:
+    tags:
+      - "desktop-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  web-guard:
+    name: Web build still passes
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  desktop:
+    name: Package desktop
+    needs: web-guard
+    runs-on: windows-latest
+    env:
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build:desktop
+
+      - name: Shell deps
+        working-directory: desktop
+        run: npm ci
+
+      - name: Compile shell
+        working-directory: desktop
+        run: npm run build
+
+      - name: Typecheck shell
+        working-directory: desktop
+        run: npm run typecheck
+
+      - name: Desktop tests
+        run: npm run test:desktop
+
+      - name: Package and publish draft
+        working-directory: desktop
+        run: npx electron-builder --win --publish always

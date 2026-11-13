@@ -1,0 +1,52 @@
+# electron-builder configuration for Nested.
+#
+# The Next standalone server is shipped as extraResources, not inside the asar:
+# it is a directory tree with its own node_modules, and it must be able to read
+# .next/static and public next to server.js at runtime.
+
+appId: app.nested.desktop
+productName: Nested
+copyright: Copyright (c) 2026 Nested
+
+directories:
+  # Outside OneDrive: sync and antivirus hold locks on freshly extracted
+  # binaries, which makes electron-builder's atomic rename fail with EBUSY.
+  output: C:/Users/itszvon/AppData/Local/nested-desktop-build
+  buildResources: resources
+
+files:
+  - dist/**
+  - package.json
+  - "!**/*.map"
+
+# extraResources would drop node_modules, so the server tree is copied by the
+# afterPack hook instead.
+afterPack: scripts/copy-standalone.mjs
+
+asar: true
+npmRebuild: false
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+nsis:
+  artifactName: ${productName}-Setup-${version}.${ext}
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Nested
+
+portable:
+  artifactName: ${productName}-Portable-${version}.${ext}
+
+publish:
+  provider: github
+  owner: itszvon
+  repo: nested
+  releaseType: release
