@@ -1,0 +1,17 @@
+{
+  "name": "nested-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Nested for Windows",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke": "node scripts/run-smoke.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "electron": "^45.3.1",
+    "typescript": "^7.0.2"
+  }
+}
