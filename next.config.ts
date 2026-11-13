@@ -45,6 +45,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Only the desktop build needs a self-contained server directory. Vercel
+  // manages its own output, and emitting `.next/standalone` on every web
+  // build would only add files nobody deploys. See scripts/build-desktop.mjs.
+  output: process.env.NEXT_DESKTOP_BUILD === "1" ? "standalone" : undefined,
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
