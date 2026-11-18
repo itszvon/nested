@@ -81,3 +81,19 @@ never downgrades, so a lower version number is not a fix.
 - No application icon; electron-builder falls back to the default Electron icon.
 - Portable exe cannot be smoke-tested from a shell because it self-extracts and
   detaches stdout. Launch it by hand once per release.
+
+
+## Uninstall and local data
+
+Uninstalling removes the program from `%LOCALAPPDATA%\Programs\Nested`. It does
+**not** delete:
+
+- `%APPDATA%\nested-desktop` - logs (`main.log`, `server.log`) and the saved
+  window position
+- Chromium's session storage for the app (the Supabase session cookie, encrypted
+  by Windows DPAPI)
+- the update cache under `%LOCALAPPDATA%\nested-desktop-updater`
+
+That is deliberate: reinstalling keeps you signed in. To start clean, sign out
+in the app, then delete those three folders. No user documents exist on disk —
+every file lives in the account.

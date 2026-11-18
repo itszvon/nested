@@ -528,6 +528,9 @@ export default function LandingPage() {
             <a href="#faq" className="lg-link text-[10px] uppercase tracking-[0.14em]">
               FAQ
             </a>
+            <Link href="/download" className="lg-link text-[10px] uppercase tracking-[0.14em]">
+              Download
+            </Link>
           </nav>
 
           <div className="ml-auto flex items-center gap-6">

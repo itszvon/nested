@@ -1,9 +1,17 @@
 import type { ChildProcess } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { release } from "node:os";
 import { join } from "node:path";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, screen, shell } from "electron";
 import { validateExport, validateImport, type ImportResult } from "./files";
 import { isOAuthNavigation, openExternalAuth } from "./auth";
 import { buildMenu } from "./menu";
@@ -12,6 +20,7 @@ import { findDeepLink, parseDeepLink } from "./protocol";
 import { createDirtyGuard } from "./update-guard";
 import { initUpdater } from "./updater";
 import { startServer, stopServer, waitForServer } from "./server";
+import { clampBounds, MIN_HEIGHT, MIN_WIDTH } from "./window-state";
 
 /**
  * One window, one server, one instance.
@@ -76,12 +85,40 @@ let server: ChildProcess | null = null;
 let quitting = false;
 let restarts = 0;
 
+function windowStateFile(): string {
+  return join(app.getPath("userData"), "window-state.json");
+}
+
+function readWindowState(): unknown {
+  try {
+    return JSON.parse(readFileSync(windowStateFile(), "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+/** Temp file then rename: a crash mid-write must not leave invalid JSON. */
+function writeWindowState(bounds: unknown): void {
+  try {
+    const file = windowStateFile();
+    writeFileSync(`${file}.tmp`, JSON.stringify(bounds));
+    renameSync(`${file}.tmp`, file);
+  } catch {
+    // Geometry is a convenience; never fail a close over it.
+  }
+}
+
 function createWindow(): BrowserWindow {
+  const bounds = clampBounds(
+    readWindowState(),
+    screen.getAllDisplays().map((display) => display.workArea),
+    { width: 1280, height: 820 },
+  );
+
   const window = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 960,
-    minHeight: 600,
+    ...bounds,
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
     backgroundColor: "#0a0a0a",
     show: !IS_SMOKE,
     title: "Nested",
@@ -111,6 +148,11 @@ function createWindow(): BrowserWindow {
     if (!isOAuthNavigation(url)) return;
     event.preventDefault();
     openExternalAuth(url);
+  });
+
+  window.on("close", () => {
+    if (window.isMinimized() || window.isFullScreen()) return;
+    writeWindowState(window.getBounds());
   });
 
   return window;

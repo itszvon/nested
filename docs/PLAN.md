@@ -91,10 +91,10 @@ Migrations in `supabase/migrations`, `supabase db reset` locally, seed with two 
 2. Buffer store: `fileId → { text, dirty, savedAt, baseRevision }`.
 3. Markdown mode: plain text, wrap, no line numbers, spellcheck.
 4. IndexedDB drafts, debounced 500 ms, keyed `(userId, fileId)`, 5 MB cap with oldest-evicted.
-5. Recovery prompt on open: "Restore unsaved changes from <time>?" Restore / Discard.
+5. Recovery on open: the differing draft is restored automatically, with a banner showing the time and Undo / × (dismiss).
 6. Guards: `beforeunload`, sign-out, leaving `/app`.
 
-**Verify:** smooth typing on 5,000 lines; buffer survives switching; hard reload restores drafts; discard clears them; undo to saved content clears the dot; no network request is ever made while typing (network panel check).
+**Verify:** smooth typing on 5,000 lines; buffer survives switching; hard reload restores drafts automatically; Undo restores the saved content and clears the draft; × hides the notice without losing the recovered text; no network request is ever made while typing (network panel check).
 
 ## Phase 6 — Saving and versions (L)
 

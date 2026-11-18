@@ -13,6 +13,7 @@ and `AGENTS.md` (rewritten by `next dev`).
 | [PRODUCTION-READINESS.md](PRODUCTION-READINESS.md) | Launch checklist and the honest state of operations. |
 | [PRODUCTION-AUDIT.md](PRODUCTION-AUDIT.md) | Audit against the Website Production-Readiness Master Checklist v2.1, with findings, remediation status and the release decision. |
 | [INCIDENT.md](INCIDENT.md) | One-page runbook: checks, containment, restore, escalation, known defects. |
+| [LANGUAGES.md](LANGUAGES.md) | What each language can actually do here: runs in the browser, previews, checks, runs remotely, or not at all. Verified against the live runner. |
 | [adding-a-language.md](adding-a-language.md) | How to add a language to the editor. |
 | [surface-brief-app.md](surface-brief-app.md) | Surface brief for the app shell. |
 | [IDEAS.md](IDEAS.md) | Candidate features, deliberately not built yet, and the competitive reasoning. |

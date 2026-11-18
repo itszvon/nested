@@ -11,7 +11,7 @@ Three honest tiers, and the app must say which one applies:
 - **Previews**: HTML, CSS. Rendered, not executed as a program.
 - **Edit only**: anything with no runtime configured. Coloured, checked, formatted where a formatter exists, but the Run button explains why it will not start.
 
-Never add a language to the picker without knowing its tier, because the picker promises whatever the runner denies.
+Never add a language to the picker without knowing its tier, because the picker promises whatever the runner denies. The current, verified matrix is in [LANGUAGES.md](LANGUAGES.md).
 
 Remote runtimes use Judge0 language ids. Add the language to `JUDGE0_LANGUAGE`
 and confirm the id against `https://ce.judge0.com/languages`. Point
@@ -54,15 +54,13 @@ Parsers that ship a `StreamLanguage` legacy mode (Bash, for example) are wrapped
 
 ## 4. Formatting, only if it exists
 
-The Format button must hide when there is no formatter rather than fail. Today:
+The Format button must hide when there is no formatter rather than fail. Today
+`src/lib/format.ts` supports:
 
 | Language | Formatter |
 |---|---|
 | JavaScript, TypeScript, HTML, CSS | Prettier |
-| Java | prettier-plugin-java |
-| Python | Ruff (WASM) |
-| C++ | clang-format (WASM) |
-| Go, Rust, SQL, Bash | none yet |
+| Java, Python, C++, Go, Rust, SQL, Bash | none; the button is hidden |
 
 ## 5. Checks
 

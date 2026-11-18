@@ -1,5 +1,10 @@
 # Production-readiness audit
 
+> **Re-audited 2026-11-11 after the landing redesign:** see
+> [PRODUCTION-AUDIT-2026-11-11.md](PRODUCTION-AUDIT-2026-11-11.md). Result:
+> READY, no open P0/P1 findings. The two accessibility regressions introduced by
+> the redesign were fixed in `e0fd2d8`.
+
 Audit of `https://nestedforyou.vercel.app` against the *Complete Website
 Production-Readiness Master Checklist v2.1* (October 2026). Date: 2026-11-01.
 

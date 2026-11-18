@@ -292,8 +292,8 @@ Permanent, after confirmation. Sibling versions from the same project snapshot r
 
 - While a buffer is dirty, it is written to IndexedDB about 500 ms after typing stops, keyed by `(userId, fileId)`, with a timestamp and the base revision.
 - Drafts never leave the device. No request is made, nothing reaches Postgres, no version is created.
-- On opening a file with a draft that differs from server content: "Restore unsaved changes from <time>?" with Restore and Discard.
-- On successful save, discard, or permanent file deletion, the draft is removed.
+- On opening a file with a draft that differs from server content, the draft is restored into the editor automatically. A banner names the time and offers Undo (put the saved version back) and a × that dismisses the notice without discarding the recovered text.
+- On successful save, Undo, or permanent file deletion, the draft is removed.
 - Drafts are namespaced per user and cleared on sign-out when discarding.
 - If the file was deleted on another device, the draft is still offered, with a warning that saving will restore the file.
 - Storage is capped at 5 MB per user in IndexedDB, oldest drafts evicted first.
