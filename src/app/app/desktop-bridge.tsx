@@ -46,11 +46,20 @@ const CODE_LANGUAGES: Record<string, string> = {
   sh: "bash",
 };
 
-function describe(name: string): { kind: "markdown" | "code"; language: string | null } {
+function describe(name: string): {
+  name: string;
+  kind: "markdown" | "code";
+  language: string | null;
+} {
   const extension = name.slice(name.lastIndexOf(".") + 1).toLowerCase();
   const language = CODE_LANGUAGES[extension];
-  // Markdown is the safe default: it accepts any name and needs no language.
-  return language ? { kind: "code", language } : { kind: "markdown", language: null };
+
+  if (language) return { name, kind: "code", language };
+
+  // Plain text imports become Markdown: the editor writes Markdown syntax, so
+  // a .txt name would misdescribe the file.
+  const renamed = /\.txt$/i.test(name) ? name.replace(/\.txt$/i, ".md") : name;
+  return { name: renamed, kind: "markdown", language: null };
 }
 
 export function DesktopBridge() {
@@ -72,7 +81,7 @@ export function DesktopBridge() {
         const shape = describe(file.name);
         const created = await createFile({
           folderId: null,
-          name: file.name,
+          name: shape.name,
           kind: shape.kind,
           language: shape.language,
         });

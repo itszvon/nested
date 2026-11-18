@@ -20,6 +20,7 @@ import { RUNNER_ENABLED } from "@/lib/site";
 import { removeBlankLines, tidyBlankLines } from "@/lib/whitespace";
 import { getFileSnapshot, saveFile, saveProject, type SaveProjectItem } from "./actions";
 import { Modal, NotesDialog, SaveProjectDialog, VersionHistoryDialog } from "./dialogs";
+import { MarkdownToolbar } from "./markdown-toolbar";
 import type { EditorIssue } from "./editor";
 
 const CodeEditor = dynamic(() => import("./editor").then((module) => module.CodeEditor), {
@@ -993,6 +994,10 @@ export function FilePane({
             setVersionsOpen(false);
           }}
         />
+      ) : null}
+
+      {file.kind === "markdown" && viewReady ? (
+        <MarkdownToolbar getView={() => viewRef.current} />
       ) : null}
 
       <div className="min-h-0 flex-1">

@@ -514,3 +514,38 @@ html:has(.landing) {
     font-size: 10px;
   }
 }
+
+/*
+ * Sign-in background: a blueprint grid that fades toward the edges, four
+ * nested squares drifting once every two minutes, and a low ember glow.
+ * All of it is decorative and stops under prefers-reduced-motion.
+ */
+.signin-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-rule) 70%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-rule) 70%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  opacity: 0.5;
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 45%, black 20%, transparent 100%);
+}
+
+.signin-rings {
+  animation: signin-drift 120s linear infinite;
+}
+
+.signin-glow {
+  background: radial-gradient(
+    ellipse 60% 45% at 62% 78%,
+    color-mix(in srgb, var(--color-accent) 16%, transparent),
+    transparent 70%
+  );
+}
+
+@keyframes signin-drift {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signin-rings { animation: none; }
+}

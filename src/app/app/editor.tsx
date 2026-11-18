@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Compartment, EditorState, RangeSetBuilder, type Extension } from "@codemirror/state";
+import { markdownKeymap } from "@/lib/markdown-format";
 import {
   Decoration,
   EditorView,
@@ -491,6 +492,8 @@ export function CodeEditor({
           ...historyKeymap,
           ...completionKeymap,
           ...foldKeymap,
+          // Bold and italic belong to Markdown; code files keep their own set.
+          ...(isCode ? [] : markdownKeymap),
           indentWithTab,
         ]),
         // Text files are plain: wrapping on, no gutter, no folding, no
