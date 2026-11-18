@@ -1,6 +1,9 @@
 import type { ChildProcess } from "node:child_process";
+import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { release } from "node:os";
+import { join } from "node:path";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from "electron";
 import { validateExport, validateImport, type ImportResult } from "./files";
 import { isOAuthNavigation, openExternalAuth } from "./auth";
 import { buildMenu } from "./menu";
@@ -20,6 +23,53 @@ import { startServer, stopServer, waitForServer } from "./server";
 const START_TIMEOUT_MS = 20_000;
 
 const dirtyGuard = createDirtyGuard();
+
+/**
+ * Main-process failures have nowhere to go: a crash in this process takes the
+ * window with it. One rotated file in the OS log directory is enough to
+ * diagnose a report without asking the user to reproduce it.
+ */
+function logCrash(kind: string, error: unknown): void {
+  try {
+    const dir = app.getPath("logs");
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, "main.log");
+    if (existsSync(file) && statSync(file).size > 1024 * 1024) {
+      renameSync(file, join(dir, "main.1.log"));
+    }
+    const text = error instanceof Error ? error.stack ?? error.message : String(error);
+    appendFileSync(file, `[${new Date().toISOString()}] ${kind}: ${text}\n`);
+  } catch {
+    // Nothing safe left to do if logging itself fails.
+  }
+}
+
+process.on("uncaughtException", (error) => logCrash("uncaughtException", error));
+process.on("unhandledRejection", (reason) => logCrash("unhandledRejection", reason));
+
+function showAbout(): void {
+  const detail = [
+    `Version ${app.getVersion()}`,
+    `Electron ${process.versions.electron}`,
+    `Chromium ${process.versions.chrome}`,
+    `Node ${process.versions.node}`,
+    `OS Windows ${release()} (${process.arch})`,
+  ].join("\n");
+
+  void dialog
+    .showMessageBox({
+      type: "info",
+      title: "About Nested",
+      message: "Nested",
+      detail,
+      buttons: ["Copy details", "Close"],
+      defaultId: 1,
+      cancelId: 1,
+    })
+    .then(({ response }) => {
+      if (response === 0) clipboard.writeText(`Nested\n${detail}`);
+    });
+}
 
 let mainWindow: BrowserWindow | null = null;
 let server: ChildProcess | null = null;
@@ -248,11 +298,15 @@ if (!gotLock) {
     }
 
     mainWindow = createWindow();
-    buildMenu(mainWindow, () => {
-      void pickFile().then((result) => {
-        if (result?.ok) mainWindow?.webContents.send("nested:file-opened", result.file);
-      });
-    });
+    buildMenu(
+      mainWindow,
+      () => {
+        void pickFile().then((result) => {
+          if (result?.ok) mainWindow?.webContents.send("nested:file-opened", result.file);
+        });
+      },
+      showAbout,
+    );
     // The server refuses loopback requests without this header, and only the
     // main process knows the token. Without this hook every page returns 403.
     const desktopToken = token();

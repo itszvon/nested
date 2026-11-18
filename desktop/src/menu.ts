@@ -35,6 +35,7 @@ export function menuTemplate(
   send: (key: NonNullable<MenuSpecItem["key"]>) => void,
   open: (path: string) => void,
   openFile?: () => void,
+  about?: () => void,
 ): MenuItemConstructorOptions[] {
   const fileItems = FILE_MENU.map((item) => itemFromSpec(item, send, open));
   if (openFile) {
@@ -65,11 +66,21 @@ export function menuTemplate(
           : ([{ type: "separator" }, { role: "toggleDevTools" }] as MenuItemConstructorOptions[])),
       ],
     },
-    { label: "Help", submenu: HELP_MENU.map((item) => itemFromSpec(item, send, open)) },
+    {
+      label: "Help",
+      submenu: [
+        ...HELP_MENU.map((item) => itemFromSpec(item, send, open)),
+        ...(about ? ([{ type: "separator" }, { label: "About Nested", click: about }] as MenuItemConstructorOptions[]) : []),
+      ],
+    },
   ];
 }
 
-export function buildMenu(window: BrowserWindow, openFile?: () => void): Menu {
+export function buildMenu(
+  window: BrowserWindow,
+  openFile?: () => void,
+  about?: () => void,
+): Menu {
   const menu = Menu.buildFromTemplate(
     menuTemplate(
       ({ keyCode, modifiers }) => {
@@ -80,6 +91,7 @@ export function buildMenu(window: BrowserWindow, openFile?: () => void): Menu {
         void shell.openExternal(`${ORIGIN}${path}`);
       },
       openFile,
+      about,
     ),
   );
 

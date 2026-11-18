@@ -5,6 +5,22 @@ main process starts the Next standalone server on `127.0.0.1:43110` and loads
 it in one window. There is no second backend: the server is the same
 stateless code, talking to the same Supabase project.
 
+## Platform targets and budgets
+
+| | |
+|---|---|
+| OS | Windows 10 22H2 and Windows 11, x64 |
+| macOS / Linux / arm64 | Not supported in 0.1.x |
+| Windows 10 pre-22H2 | Not supported (WebView2 is not used; Electron ships Chromium, but the OS is out of test scope) |
+| Window model | One window, single instance, quit on close, no tray |
+| Offline | Not supported: the app needs the network for every read and write. It is a local *shell*, not a local store. |
+| Installer | NSIS per-user (~122 MB) and portable (~109 MB) |
+| Cold start | Measured 4-6 s to first paint on this machine (server boot included); budget 8 s |
+| Idle RAM | ~250 MB total (Electron + Next server); budget 400 MB |
+| Disk | ~250 MB installed; budget 400 MB |
+| Data on device | Session cookies (Chromium/DPAPI), IndexedDB drafts, `%APPDATA%\nested-desktop\logs`, update cache |
+| Data on server | Everything the user creates, in Supabase |
+
 ## Build
 
 ```bash
