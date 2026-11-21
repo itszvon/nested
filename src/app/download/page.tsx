@@ -10,7 +10,7 @@ import { SITE_URL } from "@/lib/site";
  * Hashes and changelog live in the release notes that ship with the build.
  */
 
-const VERSION = "0.1.1";
+const VERSION = "0.1.2";
 const RELEASES = "https://github.com/itszvon/nested/releases";
 const TAG = `desktop-v${VERSION}`;
 const INSTALLER = `${RELEASES}/download/${TAG}/Nested-Setup-${VERSION}.exe`;
