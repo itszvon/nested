@@ -29,8 +29,10 @@ can check.
 |---|---|---|---|
 | Azure Trusted Signing | ~$10/month | Usually same day (Microsoft-issued identity) | 30 min setup + CI |
 | OV certificate (DigiCert, Sectigo, SSL.com) | ~$250-400/year | Weeks to months: reputation accrues per identity | 1-2 weeks for identity verification |
-| EV certificate | ~$400-600/year + hardware token / cloud HSM | Immediate on first release | 1-2 weeks verification, plus token logistics |
+| EV certificate | ~$400-600/year + hardware token / cloud HSM | No longer skips reputation (changed 2024); treat like OV | 1-2 weeks verification, plus token logistics |
 | Microsoft Store (MSIX) | $19 one-time Partner Center | Never shows SmartScreen: the Store signs it | Packaging change + review |
+
+For the free routes - Microsoft Store MSIX, or SignPath Foundation for OSS - see [CODE-SIGNING-FREE.md](CODE-SIGNING-FREE.md).
 
 If the goal is "the next person who downloads it does not see a scary dialog",
 the two realistic answers are **Azure Trusted Signing** (cheapest, fastest) or
