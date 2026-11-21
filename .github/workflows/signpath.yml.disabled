@@ -1,0 +1,32 @@
+# SignPath Foundation signing (disabled skeleton).
+#
+# Enable only after the foundation approves the project. Requires repository
+# secrets SIGNPATH_API_TOKEN and SIGNPATH_ORGANIZATION_ID, and a signing policy
+# in SignPath matched to the release tag.
+name: Sign release (SignPath)
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+jobs:
+  sign:
+    if: ${{ vars.SIGNPATH_ENABLED == 'true' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop-artifacts
+          path: dist
+      - name: Submit signing request
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: nested
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: zip
+          github-artifact-id: ${{ steps.upload.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+      # Replace the published assets with the signed copies afterwards.
