@@ -64,12 +64,6 @@ export default function DownloadPage() {
         Version {VERSION} · Windows 10 22H2 and 11 · x64
       </p>
 
-      <p className="mt-3 max-w-prose text-[12px] leading-relaxed text-accent-text">
-        Builds are hosted on GitHub, and that repository is private while 0.1.x is
-        unsigned. Downloading needs a GitHub account with access; ask and it will be
-        granted.
-      </p>
-
       <section className="mt-10 border-l-2 border-accent pl-4">
         <h2 className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink">
           Windows will warn you
